@@ -44,6 +44,7 @@ STAGES = {
                  "cmd": ["python3", "run/validate.py", "--repair", "--max-attempts", "3"]},
     "parity":   {"label": "Independent parity check",
                  "cmd": ["python3", "run/parity.py"]},
+    "ingest":   {"label": "Load repository", "cmd": None},  # url supplied per-run
     "reset":    {"label": "Reset workspace",
                  "cmd": ["bash", "-c",
                          "rm -rf .runs/demo && mkdir -p .runs/demo/workspace/migrated "
@@ -89,12 +90,16 @@ class Runner:
     def busy(self):
         return self.stage is not None and self.finished is None
 
-    def start(self, key):
+    def start(self, key, arg=None):
         with self.lock:
             if self.busy():
                 return False, "%s is already running" % self.stage
             if key not in STAGES:
                 return False, "unknown stage %r" % key
+            if key == "ingest":
+                if not arg:
+                    return False, "a repository URL or path is required"
+                STAGES["ingest"]["cmd"] = ["python3", "run/ingest.py", arg]
             self.lines = []
             self.stage = key
             self.started = time.time()
@@ -306,6 +311,17 @@ class Handler(BaseHTTPRequestHandler):
             with open(page, "rb") as fh:
                 return self._send(200, fh.read(), "text/html; charset=utf-8")
 
+        if path.startswith("/assets/"):
+            # Serve the logo and any other brand asset straight from assets/.
+            rel = path[len("/assets/"):]
+            full = os.path.realpath(os.path.join(ROOT, "assets", rel))
+            if not full.startswith(os.path.realpath(os.path.join(ROOT, "assets"))) \
+                    or not os.path.isfile(full):
+                return self._send(404, "not found", "text/plain")
+            ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
+            with open(full, "rb") as fh:
+                return self._send(200, fh.read(), ctype)
+
         if path == "/api/state":
             return self._send(200, state())
 
@@ -336,7 +352,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/run":
             body = json.loads(raw or b"{}")
-            ok, err = RUNNER.start(body.get("stage"))
+            ok, err = RUNNER.start(body.get("stage"), body.get("arg"))
             return self._send(200 if ok else 409, {"ok": ok, "error": err})
 
         if path == "/api/stop":

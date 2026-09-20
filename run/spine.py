@@ -21,10 +21,23 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fleet import WORKSPACE, artifacts, ask_expecting  # noqa: E402
 
-AIM = os.environ.get("STACKSHIFT_AIM") or (
-    "Python 3.8 goes EOL in March and we fail the security audit. We need off "
-    "Flask and MySQL without a redesign. The team is 4 people."
-)
+def _aim():
+    """The aim, in order of authority: env override, the ingested repo's
+    stackshift.json, then a default. The repo's own stated constraints should
+    win over anything baked into this harness."""
+    if os.environ.get("STACKSHIFT_AIM"):
+        return os.environ["STACKSHIFT_AIM"]
+    declared = os.path.join(WORKSPACE, ".stackshift", "aim.txt")
+    if os.path.isfile(declared):
+        with open(declared) as fh:
+            text = fh.read().strip()
+        if text:
+            return text
+    return ("Python 3.8 goes EOL in March and we fail the security audit. We "
+            "need off Flask and MySQL without a redesign. The team is 4 people.")
+
+
+AIM = _aim()
 
 
 def context_note():
