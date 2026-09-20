@@ -105,6 +105,28 @@ is architectural, not a bug.** Options, none of them done yet:
 - one agent with role-switching, which gives up the per-agent authority
   boundary that is the point of the design
 
+### Context documents are announced, not provably read
+
+Uploading an OpenAPI spec and an architecture note took context completeness
+from 14% to 42%, and the spine reported *"context: 2 document(s) supplied by the
+user"*. But no artifact from that run cites `context/` anywhere, so we told the
+agents the documents existed and cannot show they opened them.
+
+What would fix it: require Discovery to record which context files it read in
+`system_map.json`, and reject the artifact if an uploaded OpenAPI spec is not
+among them — the same treatment `reject_hollow()` gives an empty report.
+
+### The tier recommendation is not stable across runs
+
+Same aim ("no redesign", "team of 4"), two runs, two answers: Tier 1 the first
+time, **Tier 2 the second**. Tier 1 is the better reading of that aim.
+
+The recommendation is one model call over a long context, so it varies. If the
+recommendation matters — and the whole point of the tiers is that it does —
+it should be computed from the plan's own numbers rather than asked for, the
+way `score.py` computes readiness. That is the same mistake in both places, and
+we only fixed it in one.
+
 ### Per-agent cost attribution reads zero
 
 `/api/observability/finops/dashboard` shows 5 agents and 1.10 container hours
