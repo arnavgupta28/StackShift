@@ -1,0 +1,35 @@
+# secrets — never commit
+.env
+.env.*
+!.env.example
+*resources.yaml
+**/secrets/
+*.pem
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# node
+node_modules/
+
+# build / runtime
+dist/
+build/
+*.egg-info/
+target/
+
+# agent workspaces + run artifacts
+.stackshift/
+runs/
+*.log
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
