@@ -33,3 +33,5 @@ runs/
 .DS_Store
 .idea/
 .vscode/
+agents/build/
+.runs/
