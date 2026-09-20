@@ -188,7 +188,7 @@ During execution the developer sees the live trace (see
 [06-nasiko-map.md](06-nasiko-map.md)), and at the end gets a readiness report:
 
 ```
-  MIGRATION READINESS · 78%
+  MIGRATION READINESS · 72%
   ─────────────────────────────────
   Architecture confidence     91%
   API compatibility           96%

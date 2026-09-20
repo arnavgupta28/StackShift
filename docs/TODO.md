@@ -14,7 +14,7 @@ No agents needed. Everything else blocks on this.
 
 - [x] `.gitignore` covering `.env` and `*resources.yaml`
 - [x] Docs committed and pushed
-- [ ] `legacy/acme-orders/` — Flask + MySQL + Celery demo app (~20 files)
+- [x] `legacy/acme-orders/` — Flask + MySQL + Celery demo app (~20 files)
   - [ ] `app.py`, routes for `/orders`
   - [ ] `services/pricing.py` ← **trap T1** lives here
   - [ ] `services/orders.py` ← **trap T2** lives here
@@ -22,8 +22,8 @@ No agents needed. Everything else blocks on this.
   - [ ] `models/`, `repositories/`, `workers/`
   - [ ] `schema.sql` ← **trap T3** lives here
 - [ ] `contracts/schemas/*.json` — the 6 JSON contracts agents exchange
-- [ ] `scoring/score.py` — deterministic readiness, no LLM
-- [ ] `fixtures/expected_behavior.json` — the parity baseline
+- [x] `scoring/score.py` — deterministic readiness, no LLM
+- [x] `fixtures/expected_behavior.json` — the parity baseline
 
 **Gate:** legacy repo exists, all 3 traps verified real.
 
