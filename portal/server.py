@@ -191,17 +191,126 @@ def context_files():
     return out
 
 
+DEFAULT_REPO = "https://github.com/pragnyamehar-create/legacy-acme-orders"
+
+
+def repo_status():
+    legacy_dir = os.path.join(WORKSPACE, "legacy")
+    info = read_json("repo_info.json") or {}
+    linked = os.path.isdir(legacy_dir) and any(os.scandir(legacy_dir)) if os.path.isdir(legacy_dir) else False
+    files_count = 0
+    if linked:
+        for dirpath, dirs, files in os.walk(legacy_dir):
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d != "__pycache__"]
+            files_count += len([f for f in files if not f.startswith(".") and not f.endswith(".pyc")])
+
+    url = info.get("url")
+    if not url and linked:
+        try:
+            res = subprocess.run(["git", "-C", legacy_dir, "config", "--get", "remote.origin.url"],
+                                 capture_output=True, text=True, timeout=5)
+            if res.returncode == 0 and res.stdout.strip():
+                url = res.stdout.strip()
+        except Exception:
+            pass
+    if not url:
+        url = DEFAULT_REPO
+
+    name = info.get("name")
+    if not name and url:
+        name = url.rstrip("/").split("/")[-1].replace(".git", "")
+    elif not name:
+        name = "acme-orders"
+
+    return {
+        "url": url,
+        "name": name,
+        "linked": linked,
+        "files_count": files_count,
+        "source": info.get("source", "github" if info.get("url") else "local"),
+    }
+
+
+def setup_repo(url=None):
+    legacy_dir = os.path.join(WORKSPACE, "legacy")
+    os.makedirs(WORKSPACE, exist_ok=True)
+    os.makedirs(ARTIFACTS, exist_ok=True)
+    os.makedirs(CONTEXT, exist_ok=True)
+    os.makedirs(MIGRATED, exist_ok=True)
+
+    RUNNER._emit("--- Setting up source repository ---")
+    if url and url.strip():
+        url = url.strip()
+        RUNNER._emit(f"$ git clone {url} {os.path.relpath(legacy_dir, ROOT)}")
+        if os.path.isdir(legacy_dir):
+            shutil.rmtree(legacy_dir, ignore_errors=True)
+        proc = subprocess.run(["git", "clone", "--depth", "1", url, legacy_dir],
+                              capture_output=True, text=True, timeout=60)
+        if proc.returncode != 0:
+            err_msg = (proc.stderr or proc.stdout).strip()
+            RUNNER._emit(f"git clone error: {err_msg}")
+            return False, err_msg
+        source = "github"
+        RUNNER._emit("Repository cloned successfully.")
+    else:
+        url = DEFAULT_REPO
+        source = "local"
+        RUNNER._emit("Using default local repository (legacy/acme-orders)...")
+        if os.path.isdir(legacy_dir):
+            shutil.rmtree(legacy_dir, ignore_errors=True)
+        local_src = os.path.join(ROOT, "legacy", "acme-orders")
+        shutil.copytree(local_src, legacy_dir)
+        RUNNER._emit("Local repository staged.")
+
+    # Ensure expected_behavior.json exists in WORKSPACE
+    ws_fixture = os.path.join(WORKSPACE, "expected_behavior.json")
+    if not os.path.isfile(ws_fixture):
+        repo_fixture = os.path.join(legacy_dir, "fixtures", "expected_behavior.json")
+        root_fixture = os.path.join(ROOT, "fixtures", "expected_behavior.json")
+        src_fix = repo_fixture if os.path.isfile(repo_fixture) else root_fixture
+        if os.path.isfile(src_fix):
+            shutil.copy(src_fix, ws_fixture)
+            RUNNER._emit("Loaded expected_behavior.json fixture.")
+
+    # Copy context docs if available in the repo
+    repo_context = os.path.join(legacy_dir, "context")
+    if os.path.isdir(repo_context):
+        for item in os.listdir(repo_context):
+            src_item = os.path.join(repo_context, item)
+            dst_item = os.path.join(CONTEXT, item)
+            if os.path.isfile(src_item) and not os.path.exists(dst_item):
+                shutil.copy(src_item, dst_item)
+                RUNNER._emit(f"Imported context doc: {item}")
+
+    name = url.rstrip("/").split("/")[-1].replace(".git", "")
+    info = {
+        "url": url,
+        "name": name,
+        "source": source,
+        "linked_at": time.time(),
+    }
+    with open(os.path.join(ARTIFACTS, "repo_info.json"), "w") as fh:
+        json.dump(info, fh, indent=2)
+
+    RUNNER._emit(f"Source repository active: {name}")
+    return True, None
+
+
 def completeness():
     """What context is linked, and what the missing pieces would buy.
 
     Shown rather than hidden, because 'you can proceed at 40%' plus a concrete
     reason to link the rest is better UX than silently doing worse.
     """
+    repo = repo_status()
     have = {f["kind"] for f in context_files()}
     rows = [{"kind": kind, "linked": kind in have, "unlocks": unlocks}
             for kind, _, unlocks in CONTEXT_KINDS]
-    rows.insert(0, {"kind": "repository", "linked": os.path.isdir(
-        os.path.join(WORKSPACE, "legacy")), "unlocks": "Required"})
+    rows.insert(0, {
+        "kind": "repository",
+        "linked": repo["linked"],
+        "unlocks": f"{repo['name']} ({repo['files_count']} files)" if repo["linked"] else "Required"
+    })
     linked = sum(1 for r in rows if r["linked"])
     return {"rows": rows, "linked": linked, "total": len(rows),
             "percent": int(100 * linked / len(rows))}
@@ -263,6 +372,7 @@ def state():
             pass
 
     return {
+        "repo": repo_status(),
         "steps": steps,
         "tiers": tiers,
         "recommended_tier": (plan or {}).get("recommended_tier"),
@@ -333,6 +443,14 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length) if length else b""
+
+        if path == "/api/repo/clone":
+            body = json.loads(raw or b"{}")
+            url = body.get("url")
+            ok, err = setup_repo(url)
+            if not ok:
+                return self._send(400, {"ok": False, "error": err})
+            return self._send(200, {"ok": True, "repo": repo_status()})
 
         if path == "/api/run":
             body = json.loads(raw or b"{}")

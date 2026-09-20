@@ -107,6 +107,24 @@
 
 <div class="wrap">
 
+  <div class="card" id="repoCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <h2 style="margin:0">Target Legacy Codebase</h2>
+      <div id="repoBadge" class="row">
+        <span class="pill" id="repoStatusPill">Loading repository…</span>
+      </div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <input type="text" id="repoUrl" style="flex:1;min-width:320px;padding:8px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-family:var(--mono);font-size:13px" value="https://github.com/pragnyamehar-create/legacy-acme-orders" placeholder="https://github.com/org/repo">
+      <button id="bCloneRepo" class="primary">Clone &amp; Link Repo</button>
+      <button id="bResetRepo">Use Local Default</button>
+      <a id="repoGithubLink" href="https://github.com/pragnyamehar-create/legacy-acme-orders" target="_blank" rel="noopener" style="font-size:13px;margin-left:4px">View on GitHub ↗</a>
+    </div>
+    <div class="muted" id="repoDetails" style="margin-top:8px;font-size:12px">
+      Ready for discovery: Flask 1.1 + MySQL + Celery with 3 planted migration traps.
+    </div>
+  </div>
+
   <div class="card">
     <h2>Pipeline</h2>
     <div class="track" id="track"></div>
@@ -347,6 +365,26 @@ function renderMigrated(st){
         target="_blank" class="mono">${p}</a></div>`).join("");
 }
 
+function renderRepo(st){
+  const r = st.repo;
+  if (!r) return;
+  const input = $("#repoUrl");
+  if (r.url && document.activeElement !== input) {
+    input.value = r.url;
+  }
+  $("#repoGithubLink").href = r.url;
+  const pill = $("#repoStatusPill");
+  if (r.linked) {
+    pill.textContent = (r.source === "github" ? "GitHub: " : "Local: ") + r.name + " (" + r.files_count + " files)";
+    pill.className = "pill ok";
+    $("#repoDetails").innerHTML = `<b>Connected:</b> <a href="${r.url}" target="_blank">${r.url}</a> · <b>${r.files_count} files</b> · 3 migration traps active. Ready for fleet analysis.`;
+  } else {
+    pill.textContent = "No repository linked";
+    pill.className = "pill bad";
+    $("#repoDetails").innerHTML = `<span class="bad">Please link a repository before running the migration pipeline.</span>`;
+  }
+}
+
 async function refresh(){
   const st = await api("/api/state");
   $("#nasikoLink").href = st.nasiko;
@@ -354,9 +392,46 @@ async function refresh(){
   const pill = $("#grantPill");
   pill.textContent = "execution: " + g;
   pill.className = "pill " + (g === "read-write" ? "rw" : "ro");
+  renderRepo(st);
   renderTrack(st); renderTiers(st); renderReadiness(st);
   renderRegressions(st); renderFiles(st); renderMigrated(st);
 }
+
+// repo buttons
+$("#bCloneRepo").onclick = async () => {
+  const url = $("#repoUrl").value.trim();
+  if (!url) { alert("Please enter a GitHub repository URL"); return; }
+  $("#bCloneRepo").disabled = true;
+  $("#bCloneRepo").textContent = "Cloning…";
+  logSince = 0; $("#log").textContent = "Cloning repository from GitHub...\n";
+  const out = await api("/api/repo/clone", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url})
+  });
+  $("#bCloneRepo").disabled = false;
+  $("#bCloneRepo").textContent = "Clone & Link Repo";
+  if (!out.ok) {
+    alert("Clone failed: " + (out.error || "Unknown error"));
+  }
+  await pollLog();
+  await refresh();
+};
+
+$("#bResetRepo").onclick = async () => {
+  $("#bResetRepo").disabled = true;
+  $("#bResetRepo").textContent = "Resetting…";
+  logSince = 0; $("#log").textContent = "Staging local default repository...\n";
+  const out = await api("/api/repo/clone", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url: ""})
+  });
+  $("#bResetRepo").disabled = false;
+  $("#bResetRepo").textContent = "Use Local Default";
+  await pollLog();
+  await refresh();
+};
 
 // stage buttons
 $("#bFleet").onclick    = () => run("fleet");

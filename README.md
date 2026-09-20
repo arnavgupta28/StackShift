@@ -52,7 +52,7 @@ Requires the Nasiko stack running locally (`docker compose up -d` in `../nasiko`
 python3 portal/server.py     # then open http://localhost:7700
 ```
 
-Trigger every stage, watch the live output, drop in context documents, approve a
+Paste your legacy repository URL (or use the published testbed [pragnyamehar-create/legacy-acme-orders](https://github.com/pragnyamehar-create/legacy-acme-orders)), trigger every stage, watch the live output, drop in context documents, approve a
 tier, and read the readiness score. Standard library only — nothing to install.
 
 It shells out to the same `run/*.py` scripts you would run by hand, so the
