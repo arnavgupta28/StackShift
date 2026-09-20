@@ -39,42 +39,53 @@ BLOCKER_RULES = [
 MERGE_THRESHOLD = 0.90
 
 
+def _num(evidence, key):
+    """Read a count, treating a missing key and an explicit null alike.
+
+    Agents emit `"statements_total": null` for things they did not measure, and
+    dict.get(key, 0) returns None for that, not 0. Reporting nothing measured
+    and measuring zero are the same thing here: no evidence.
+    """
+    value = evidence.get(key)
+    return 0 if value is None else value
+
+
 def _ratio(passed, total):
     """Passed out of total, where an empty set scores 0 rather than 1.
 
     Zero tests is not a perfect score. It is no evidence.
     """
-    if total <= 0:
+    if not total or total <= 0:
         return 0.0
-    return max(0.0, min(1.0, passed / total))
+    return max(0.0, min(1.0, (passed or 0) / total))
 
 
 def compute(ev):
     """ev: counted evidence emitted by the Validation agent."""
     dims = {}
 
-    modules = ev.get("modules_total", 0)
+    modules = _num(ev, "modules_total")
     dims["architecture_confidence"] = _ratio(
-        modules - ev.get("unresolved_dependencies", 0), modules
+        modules - _num(ev, "unresolved_dependencies"), modules
     )
 
-    contracts = ev.get("contract_tests_total", 0)
+    contracts = _num(ev, "contract_tests_total")
     dims["api_compatibility"] = _ratio(
-        contracts - ev.get("failed_contract_tests", 0), contracts
+        contracts - _num(ev, "failed_contract_tests"), contracts
     )
 
-    tables = ev.get("tables_total", 0)
+    tables = _num(ev, "tables_total")
     dims["database_compatibility"] = _ratio(
-        tables - ev.get("schema_incompatibilities", 0), tables
+        tables - _num(ev, "schema_incompatibilities"), tables
     )
 
-    rules = ev.get("behavior_rules_total", 0)
+    rules = _num(ev, "behavior_rules_total")
     dims["behavioral_parity"] = _ratio(
-        rules - ev.get("behavior_mismatches", 0), rules
+        rules - _num(ev, "behavior_mismatches"), rules
     )
 
-    stmts = ev.get("statements_total", 0)
-    dims["test_coverage"] = _ratio(ev.get("statements_covered", 0), stmts)
+    stmts = _num(ev, "statements_total")
+    dims["test_coverage"] = _ratio(_num(ev, "statements_covered"), stmts)
 
     # Apply context caps — we cannot claim what we never had evidence for.
     context = ev.get("context_linked", [])
@@ -90,7 +101,7 @@ def compute(ev):
 
     blockers = []
     for key, limit, label in BLOCKER_RULES:
-        n = ev.get(key, 0)
+        n = _num(ev, key)
         if n > limit:
             blockers.append({"count": n, "label": label, "key": key})
 
