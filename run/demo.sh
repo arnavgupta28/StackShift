@@ -16,7 +16,9 @@ for arg in "$@"; do
     --fast) FAST=1 ;;
     --reset)
       rm -rf .runs/demo
-      mkdir -p .runs/demo/workspace/migrated
+      # .stackshift must exist before any container mounts it, or Docker
+      # creates it root-owned and the agents cannot write their findings.
+      mkdir -p .runs/demo/workspace/migrated .runs/demo/workspace/.stackshift
       cp -r legacy/acme-orders .runs/demo/workspace/legacy
       cp fixtures/expected_behavior.json .runs/demo/workspace/
       echo "  workspace reset"
