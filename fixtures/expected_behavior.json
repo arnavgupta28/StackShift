@@ -1,0 +1,77 @@
+{
+  "description": "Behavioral baseline captured from the legacy system. The migrated system must reproduce every case here. Each case cites the legacy source that defines it.",
+  "source_system": "legacy/acme-orders",
+  "cases": [
+    {
+      "id": "BEH-001",
+      "rule": "VIP customers receive a 15% discount on orders above 5000",
+      "source": "services/pricing.py:24",
+      "documented": false,
+      "input": {"customer": {"vip": true, "region": "W"}, "items": [{"price": "7200", "quantity": 1}], "coupon": null},
+      "expected": {"total": "6120.00"}
+    },
+    {
+      "id": "BEH-002",
+      "rule": "A coupon cannot stack on top of the VIP discount; it is silently ignored",
+      "source": "services/pricing.py:27",
+      "documented": false,
+      "trap": "T1",
+      "input": {"customer": {"vip": true, "region": "W"}, "items": [{"price": "7200", "quantity": 1}], "coupon": "SAVE10"},
+      "expected": {"total": "6120.00"},
+      "naive_migration_produces": "5508.00",
+      "note": "The legacy code expresses this as an empty `if discount > 0: pass` branch. A rewrite that tidies it up silently changes pricing."
+    },
+    {
+      "id": "BEH-003",
+      "rule": "Coupons apply normally for non-VIP customers",
+      "source": "services/pricing.py:30",
+      "documented": false,
+      "input": {"customer": {"vip": false, "region": "W"}, "items": [{"price": "7200", "quantity": 1}], "coupon": "SAVE10"},
+      "expected": {"total": "6480.00"}
+    },
+    {
+      "id": "BEH-004",
+      "rule": "Orders above 2000 shipping to region NE carry a 2% surcharge",
+      "source": "services/pricing.py:36",
+      "documented": false,
+      "input": {"customer": {"vip": false, "region": "NE"}, "items": [{"price": "3000", "quantity": 1}], "coupon": null},
+      "expected": {"total": "3060.00"}
+    },
+    {
+      "id": "BEH-005",
+      "rule": "After 3 payment failures the order moves to payment_disabled",
+      "source": "services/orders.py:38",
+      "documented": false,
+      "input": {"failures": 3},
+      "expected": {"status": "payment_disabled"}
+    },
+    {
+      "id": "BEH-006",
+      "rule": "The reorder report lists discontinued (NULL quantity) products FIRST",
+      "source": "repositories/order_repo.py:find_lowest_stock_items",
+      "documented": true,
+      "trap": "T3",
+      "input": {"products": [{"sku": "DISCONTINUED-1", "quantity": null}, {"sku": "WIDGET-A", "quantity": 3}, {"sku": "WIDGET-B", "quantity": 50}]},
+      "expected": {"first_row_sku": "DISCONTINUED-1"},
+      "naive_migration_produces": "WIDGET-A",
+      "note": "MySQL sorts NULLs first on ASC; PostgreSQL sorts them last. Verified empirically against PostgreSQL 16. The migrated query needs an explicit NULLS FIRST.",
+      "fix": "ORDER BY quantity ASC NULLS FIRST"
+    },
+    {
+      "id": "BEH-007",
+      "rule": "Shipped orders cannot be cancelled",
+      "source": "services/orders.py:28",
+      "documented": false,
+      "input": {"status": "shipped", "action": "cancel"},
+      "expected": {"error": "cannot cancel shipped order"}
+    },
+    {
+      "id": "BEH-008",
+      "rule": "VIP customers always get free shipping regardless of total",
+      "source": "services/pricing.py:41",
+      "documented": false,
+      "input": {"customer": {"vip": true}, "total": "100"},
+      "expected": {"free_shipping": true}
+    }
+  ]
+}

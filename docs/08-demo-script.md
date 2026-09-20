@@ -116,7 +116,7 @@ Show the trace, then the readiness card.
 ```
   Agents 5 · A2A calls 19 · 4m12s · 512k tokens · $1.14 · repairs 3
 
-  READINESS 78% — do not merge yet
+  READINESS 72% — do not merge yet
   ─ 3 behavior mismatches
   ─ 1 schema incompatibility
 ```
