@@ -24,6 +24,7 @@ allowed to touch, stops them running away, and records every decision as a trace
 | 7 | [07-build-plan.md](07-build-plan.md) | What we build today, in what order, with the cut lines |
 | 8 | [08-demo-script.md](08-demo-script.md) | The run-of-show and the 2-minute pitch |
 | 9 | [09-findings.md](09-findings.md) | **What we measured after building it** — including what did not work |
+| 10 | [10-recording-steps.md](10-recording-steps.md) | **Recording the demo** — checklist, beat-by-beat script, fallbacks |
 | — | [TODO.md](TODO.md) | Live build checklist and how to run everything |
 
 ---

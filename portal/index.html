@@ -1,174 +1,368 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StackShift</title>
+<link rel="icon" href="/assets/Logo_final.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0e1116; --panel:#161b22; --panel2:#1c2230; --line:#2a3140;
-    --ink:#e6edf3; --dim:#8b949e; --faint:#6e7681;
-    --accent:#4493f8; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
-  }
-  @media (prefers-color-scheme: light){
-    :root:not([data-theme="dark"]){
-      --bg:#f6f8fa; --panel:#fff; --panel2:#f0f3f6; --line:#d8dee4;
-      --ink:#1f2328; --dim:#59636e; --faint:#818b98;
-    }
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
-  header{border-bottom:1px solid var(--line);padding:14px 16px;display:flex;
-    gap:14px;align-items:center;flex-wrap:wrap;background:var(--panel)}
-  h1{font-size:16px;margin:0;letter-spacing:-.01em}
-  h1 span{color:var(--dim);font-weight:400;margin-left:8px}
-  .grow{flex:1}
-  a{color:var(--accent)}
-  .wrap{max-width:1180px;margin:0 auto;padding:16px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  @media(max-width:900px){.grid{grid-template-columns:1fr}}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
-    padding:14px;margin-bottom:16px}
-  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;
-    color:var(--dim);margin:0 0 12px}
-  button{font:inherit;background:var(--panel2);color:var(--ink);cursor:pointer;
-    border:1px solid var(--line);border-radius:7px;padding:7px 12px}
-  button:hover:not(:disabled){border-color:var(--accent)}
-  button:disabled{opacity:.45;cursor:not-allowed}
-  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  button.danger{border-color:var(--bad);color:var(--bad)}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+/* Palette lifted from the logo: cyan -> blue -> violet on near-black. */
+:root{
+  --cyan:#22d3ee; --blue:#3b82f6; --indigo:#4f46e5; --violet:#a855f7;
+  --grad:linear-gradient(110deg,var(--cyan),var(--blue) 45%,var(--violet));
+  --ok:#34d399; --warn:#fbbf24; --bad:#fb7185;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --r:14px; --dur:.32s; --ease:cubic-bezier(.22,.9,.3,1);
+}
+:root[data-theme="dark"]{
+  --bg:#07090f; --bg2:#0b0f18; --panel:rgba(20,26,40,.72); --panelSolid:#141a28;
+  --line:rgba(140,170,255,.13); --lineStrong:rgba(140,170,255,.28);
+  --ink:#e8edf7; --dim:#93a0bb; --faint:#68748f;
+  --glow:0 0 40px -10px rgba(59,130,246,.55);
+  --logGlass:rgba(4,7,13,.82);
+}
+:root[data-theme="light"]{
+  --bg:#f7f9fd; --bg2:#eef2fa; --panel:rgba(255,255,255,.82); --panelSolid:#fff;
+  --line:rgba(30,60,120,.12); --lineStrong:rgba(30,60,120,.26);
+  --ink:#101728; --dim:#4e5b76; --faint:#7b88a3;
+  --glow:0 10px 40px -18px rgba(59,130,246,.45);
+  --logGlass:rgba(12,17,28,.95);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+/* ambient aurora */
+body::before{
+  content:"";position:fixed;inset:-30% -10% auto -10%;height:70vh;z-index:0;
+  background:
+    radial-gradient(48% 55% at 18% 18%,rgba(34,211,238,.16),transparent 70%),
+    radial-gradient(44% 50% at 78% 12%,rgba(168,85,247,.16),transparent 70%),
+    radial-gradient(40% 44% at 50% 40%,rgba(59,130,246,.13),transparent 72%);
+  filter:blur(28px);pointer-events:none;
+  animation:drift 22s ease-in-out infinite alternate;
+}
+@keyframes drift{to{transform:translate3d(0,26px,0) scale(1.07)}}
+@media (prefers-reduced-motion:reduce){
+  body::before{animation:none}
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:0 20px 56px}
 
-  /* pipeline tracker */
-  .track{display:flex;gap:6px;flex-wrap:wrap}
-  .node{flex:1;min-width:104px;border:1px solid var(--line);border-radius:8px;
-    padding:9px 10px;background:var(--panel2);position:relative}
-  .node b{display:block;font-size:12px;font-weight:600}
-  .node small{color:var(--faint);font-size:11px}
-  .node.done{border-color:var(--ok)}
-  .node.done b::after{content:" ✓";color:var(--ok)}
-  .node.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-  .node.gate{border-style:dashed}
+/* ── header ─────────────────────────────────────────────── */
+header{
+  position:sticky;top:0;z-index:20;backdrop-filter:blur(16px) saturate(1.5);
+  background:color-mix(in srgb,var(--bg) 82%,transparent);
+  border-bottom:1px solid var(--line);
+}
+.hdr{max-width:1240px;margin:0 auto;padding:12px 20px;display:flex;gap:14px;align-items:center}
+.brand{display:flex;gap:11px;align-items:center;min-width:0}
+.brand img{
+  width:36px;height:36px;border-radius:10px;object-fit:cover;flex:none;
+  box-shadow:var(--glow);animation:breathe 5s var(--ease) infinite;
+}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.brand h1{
+  margin:0;font-size:17px;font-weight:700;letter-spacing:-.02em;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.brand small{display:block;color:var(--faint);font-size:11px;font-weight:500;
+  letter-spacing:.06em;text-transform:uppercase;-webkit-text-fill-color:initial}
+.grow{flex:1}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);
+  font-size:11.5px;padding:5px 11px;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel);white-space:nowrap;
+  transition:all var(--dur) var(--ease);
+}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.chip.ro{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.chip.ro .dot{background:var(--warn)}
+.chip.rw{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
+.chip.rw .dot{background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:ping 2s infinite}
+@keyframes ping{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.iconbtn{
+  width:36px;height:36px;display:grid;place-items:center;border-radius:10px;
+  border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  cursor:pointer;transition:all var(--dur) var(--ease);font-size:15px;
+}
+.iconbtn:hover{border-color:var(--lineStrong);transform:translateY(-1px)}
+a.link{color:var(--blue);text-decoration:none;font-size:13px;font-weight:500}
+a.link:hover{text-decoration:underline}
 
-  /* tiers */
-  .tier{border:1px solid var(--line);border-radius:9px;padding:12px;
-    margin-bottom:10px;background:var(--panel2)}
-  .tier.rec{border-color:var(--accent)}
-  .tier h3{margin:0 0 4px;font-size:14px}
-  .tier .tag{font-size:10px;text-transform:uppercase;letter-spacing:.07em;
-    color:var(--accent);border:1px solid var(--accent);border-radius:20px;
-    padding:1px 8px;margin-left:8px;vertical-align:2px}
-  .tier p{margin:5px 0;color:var(--dim);font-size:13px}
-  .meta{font-family:var(--mono);font-size:12px;color:var(--faint)}
+/* ── cards ──────────────────────────────────────────────── */
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:18px;margin-top:16px;backdrop-filter:blur(14px);
+  animation:rise .5s var(--ease) both;
+}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.card h2{
+  font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:var(--faint);
+  margin:0 0 14px;font-weight:600;display:flex;align-items:center;gap:8px;
+}
+.card h2 .note{text-transform:none;letter-spacing:0;color:var(--faint);font-weight:400}
+.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;align-items:start}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
 
-  /* log */
-  pre.log{background:#0a0d12;color:#c9d1d9;border:1px solid var(--line);
-    border-radius:8px;padding:12px;font-family:var(--mono);font-size:12px;
-    line-height:1.45;height:340px;overflow:auto;margin:0;white-space:pre-wrap}
-  :root:not([data-theme="dark"]) pre.log{background:#0d1117}
+/* ── pipeline ───────────────────────────────────────────── */
+.pipe{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:4px}
+.step{flex:1;min-width:120px;position:relative;padding:0 3px}
+.step .box{
+  border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+  background:color-mix(in srgb,var(--panelSolid) 55%,transparent);
+  transition:all var(--dur) var(--ease);height:100%;
+}
+.step .who{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.step .what{font-family:var(--mono);font-size:10.5px;color:var(--faint);
+  margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step .tick{
+  width:16px;height:16px;border-radius:50%;display:grid;place-items:center;
+  font-size:10px;flex:none;border:1.5px solid var(--faint);color:transparent;
+  transition:all var(--dur) var(--ease);
+}
+.step.done .box{border-color:color-mix(in srgb,var(--ok) 42%,transparent);
+  background:color-mix(in srgb,var(--ok) 7%,transparent)}
+.step.done .tick{background:var(--ok);border-color:var(--ok);color:#04110b;
+  animation:pop .4s var(--ease)}
+@keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+.step.active .box{
+  border-color:transparent;background:var(--panelSolid);
+  box-shadow:0 0 0 1.5px var(--blue),0 0 26px -8px var(--blue);
+  animation:live 1.7s ease-in-out infinite;
+}
+@keyframes live{50%{box-shadow:0 0 0 1.5px var(--cyan),0 0 34px -6px var(--cyan)}}
+.step.gate .box{border-style:dashed}
+.step.gate.done .box{border-style:solid}
+.step .rail{
+  position:absolute;top:50%;right:-3px;width:6px;height:2px;background:var(--line);
+}
+.step:last-child .rail{display:none}
+.spinner{
+  width:11px;height:11px;border-radius:50%;flex:none;
+  border:1.6px solid color-mix(in srgb,var(--blue) 30%,transparent);
+  border-top-color:var(--blue);animation:spin .75s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-  .kv{display:flex;justify-content:space-between;gap:10px;padding:5px 0;
-    border-bottom:1px solid var(--line);font-size:13px}
-  .kv:last-child{border:0}
-  .kv span:first-child{color:var(--dim)}
-  .mono{font-family:var(--mono)}
-  .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+/* progress */
+.prog{margin-top:14px}
+.prog .meta{display:flex;justify-content:space-between;font-size:12px;
+  color:var(--dim);margin-bottom:7px;font-family:var(--mono)}
+.track{height:7px;border-radius:99px;background:color-mix(in srgb,var(--ink) 9%,transparent);
+  overflow:hidden;position:relative}
+.track i{display:block;height:100%;border-radius:99px;background:var(--grad);
+  width:0;transition:width .6s var(--ease);position:relative}
+.track.busy i::after{
+  content:"";position:absolute;inset:0;border-radius:99px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+  animation:shimmer 1.4s linear infinite;
+}
+@keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
 
-  /* dropzone */
-  .drop{border:1.5px dashed var(--line);border-radius:9px;padding:20px;
-    text-align:center;color:var(--dim);cursor:pointer;background:var(--panel2)}
-  .drop.over{border-color:var(--accent);color:var(--accent)}
-  .file{display:flex;justify-content:space-between;gap:8px;font-size:12px;
-    padding:4px 0;border-bottom:1px solid var(--line)}
-  .kind{font-family:var(--mono);color:var(--accent);font-size:11px}
+/* ── buttons ────────────────────────────────────────────── */
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+button{
+  font:500 13px/1 var(--sans);padding:9px 14px;border-radius:10px;cursor:pointer;
+  border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  transition:all var(--dur) var(--ease);display:inline-flex;align-items:center;gap:7px;
+}
+button:hover:not(:disabled){border-color:var(--lineStrong);transform:translateY(-1px)}
+button:active:not(:disabled){transform:translateY(0)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--grad);border-color:transparent;color:#fff;font-weight:600;
+  box-shadow:0 6px 20px -10px var(--blue)}
+button.primary:hover:not(:disabled){box-shadow:0 10px 26px -10px var(--blue)}
+button.ghost{background:transparent}
+button.danger{border-color:color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad)}
+button .n{font-family:var(--mono);font-size:11px;opacity:.65}
 
-  .bar{height:6px;border-radius:4px;background:var(--panel2);overflow:hidden}
-  .bar i{display:block;height:100%;background:var(--accent)}
-  .bar i.ok{background:var(--ok)} .bar i.warn{background:var(--warn)}
-  .bar i.bad{background:var(--bad)}
-  .muted{color:var(--dim);font-size:12px}
-  ul.plain{list-style:none;margin:0;padding:0}
-  .pill{display:inline-block;font-size:11px;font-family:var(--mono);
-    border:1px solid var(--line);border-radius:20px;padding:1px 9px}
-  .pill.ro{color:var(--warn);border-color:var(--warn)}
-  .pill.rw{color:var(--ok);border-color:var(--ok)}
+/* ── log ────────────────────────────────────────────────── */
+pre.log{
+  margin:0;height:352px;overflow:auto;padding:14px;border-radius:12px;
+  background:var(--logGlass);border:1px solid var(--line);
+  font-family:var(--mono);font-size:11.8px;line-height:1.6;color:#c7d3e8;
+  white-space:pre-wrap;word-break:break-word;
+}
+pre.log::-webkit-scrollbar{width:9px}
+pre.log::-webkit-scrollbar-thumb{background:var(--lineStrong);border-radius:9px}
+.log .ln{animation:fadein .28s var(--ease) both}
+@keyframes fadein{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
+.log .g{color:var(--ok)} .log .r{color:var(--bad)} .log .y{color:var(--warn)}
+.log .b{color:var(--cyan)} .log .d{color:#6b7a94}
+
+/* ── tiers ──────────────────────────────────────────────── */
+.tier{
+  border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:11px;
+  background:color-mix(in srgb,var(--panelSolid) 50%,transparent);
+  transition:all var(--dur) var(--ease);position:relative;overflow:hidden;
+}
+.tier:hover{transform:translateY(-2px);border-color:var(--lineStrong)}
+.tier.rec{border-color:transparent;box-shadow:0 0 0 1.5px var(--blue)}
+.tier.rec::before{content:"";position:absolute;inset:0 0 auto 0;height:2.5px;background:var(--grad)}
+.tier.approved{box-shadow:0 0 0 1.5px var(--ok)}
+.tier h3{margin:0;font-size:14.5px;font-weight:650;display:flex;align-items:center;gap:9px}
+.badge{
+  font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;
+  padding:3px 9px;border-radius:99px;background:var(--grad);color:#fff;
+}
+.badge.ok{background:var(--ok);color:#04110b}
+.tier p{margin:7px 0 0;color:var(--dim);font-size:12.5px}
+.stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-family:var(--mono);
+  font-size:11px;color:var(--faint)}
+.stats b{color:var(--ink);font-weight:600}
+
+/* ── misc ───────────────────────────────────────────────── */
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;
+  border-bottom:1px solid var(--line);font-size:12.5px}
+.kv:last-child{border:0}
+.kv .k{color:var(--dim)}
+.mono{font-family:var(--mono)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.muted{color:var(--dim);font-size:12.5px}
+.score{font-size:42px;font-weight:700;letter-spacing:-.03em;line-height:1;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent}
+.bar{height:7px;border-radius:99px;background:color-mix(in srgb,var(--ink) 9%,transparent);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--grad);
+  transition:width .8s var(--ease)}
+.bar i.ok{background:var(--ok)}.bar i.warn{background:var(--warn)}.bar i.bad{background:var(--bad)}
+.drop{
+  border:1.5px dashed var(--line);border-radius:12px;padding:26px 18px;text-align:center;
+  color:var(--dim);cursor:pointer;transition:all var(--dur) var(--ease);
+  background:color-mix(in srgb,var(--panelSolid) 35%,transparent);
+}
+.drop:hover,.drop.over{border-color:var(--blue);color:var(--blue);
+  background:color-mix(in srgb,var(--blue) 7%,transparent)}
+.drop.over{transform:scale(1.015)}
+.drop b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:3px}
+.file{display:flex;justify-content:space-between;gap:10px;font-size:12px;
+  padding:7px 0;border-bottom:1px solid var(--line);animation:rise .35s var(--ease) both}
+.file:last-child{border:0}
+.kind{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:99px;
+  background:color-mix(in srgb,var(--blue) 15%,transparent);color:var(--blue)}
+ul.plain{list-style:none;margin:0;padding:0}
+.reg{padding:9px 0;border-bottom:1px solid var(--line);animation:rise .35s var(--ease) both}
+.reg:last-child{border:0}
+.foot{text-align:center;color:var(--faint);font-size:11.5px;padding:26px 0 0}
+.inp{
+  flex:1;min-width:260px;font:400 13px/1 var(--mono);padding:10px 13px;
+  border-radius:10px;border:1px solid var(--line);background:var(--logGlass);
+  color:var(--ink);transition:all var(--dur) var(--ease);
+}
+.inp:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
 </style>
 </head>
 <body>
+
 <header>
-  <h1>StackShift <span>migration control</span></h1>
-  <span class="pill" id="grantPill">grant …</span>
-  <div class="grow"></div>
-  <span class="muted" id="stageNow">idle</span>
-  <a id="nasikoLink" href="http://localhost:8080" target="_blank" rel="noopener">Nasiko dashboard ↗</a>
+  <div class="hdr">
+    <div class="brand">
+      <img src="/assets/Logo_final.webp" alt="StackShift">
+      <div><h1>StackShift</h1><small>migration control</small></div>
+    </div>
+    <span class="chip" id="grantChip"><i class="dot"></i><span>execution: …</span></span>
+    <div class="grow"></div>
+    <span class="chip" id="stageChip"><i class="dot"></i><span>idle</span></span>
+    <a class="link" id="nasikoLink" href="http://localhost:8080" target="_blank" rel="noopener">Nasiko ↗</a>
+    <button class="iconbtn" id="theme" title="Toggle theme">◐</button>
+  </div>
 </header>
 
 <div class="wrap">
 
   <div class="card">
+    <h2>Source repository</h2>
+    <div class="row">
+      <input id="repoUrl" class="inp"
+        value="https://github.com/pragnyamehar-create/legacy-acme-orders"
+        placeholder="https://github.com/org/legacy-app" spellcheck="false">
+      <button id="bIngest" class="primary">Load repository</button>
+    </div>
+    <p class="muted" style="margin:10px 0 0">
+      Clones the repo into a fresh workspace. If it ships a
+      <span class="mono">stackshift.json</span>, its stated aim drives the tier
+      recommendation; anything in its <span class="mono">context/</span> folder
+      is adopted as context.
+    </p>
+  </div>
+
+  <div class="card">
     <h2>Pipeline</h2>
-    <div class="track" id="track"></div>
-    <div class="row" style="margin-top:12px">
-      <button id="bFleet">1 · Start fleet</button>
-      <button id="bSpine" class="primary">2 · Discover → Assess → Plan</button>
-      <button id="bDenied">3 · Try execute (no approval)</button>
-      <button id="bExecute">4 · Execute</button>
-      <button id="bValidate">5 · Validate &amp; repair</button>
-      <button id="bParity">6 · Parity check</button>
+    <div class="pipe" id="pipe"></div>
+    <div class="prog">
+      <div class="meta"><span id="progLabel">waiting to start</span><span id="progRight">0 / 6</span></div>
+      <div class="track" id="track"><i id="trackFill"></i></div>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button id="bFleet"><span class="n">1</span> Start fleet</button>
+      <button id="bSpine" class="primary"><span class="n">2</span> Discover → Assess → Plan</button>
+      <button id="bDenied"><span class="n">3</span> Execute without approval</button>
+      <button id="bExecute"><span class="n">4</span> Execute</button>
+      <button id="bValidate"><span class="n">5</span> Validate &amp; repair</button>
+      <button id="bParity"><span class="n">6</span> Parity check</button>
       <div class="grow"></div>
       <button id="bStop" class="danger">Stop</button>
-      <button id="bReset">Reset</button>
+      <button id="bReset" class="ghost">Reset</button>
     </div>
   </div>
 
   <div class="grid">
     <div>
       <div class="card">
-        <h2>Live output</h2>
-        <pre class="log" id="log">Nothing running yet. Pick a stage above.</pre>
+        <h2>Live output <span class="note" id="logMeta"></span></h2>
+        <pre class="log" id="log"><span class="d">Nothing running yet — pick a stage above.</span></pre>
       </div>
 
       <div class="card">
-        <h2>Context documents <span class="muted">— optional</span></h2>
-        <p class="muted" style="margin-top:-6px">
-          Drop your OpenAPI spec, schema dump, architecture notes, ticket export
-          or a traffic sample. Everything here is optional — the repo alone is
-          enough — but each one makes the plan less of a guess.
+        <h2>Context documents <span class="note">— optional</span></h2>
+        <p class="muted" style="margin:-8px 0 12px">
+          OpenAPI spec, schema dump, architecture notes, ticket export, traffic
+          sample. The repo alone is enough — each of these just makes the plan
+          less of a guess.
         </p>
         <div class="drop" id="drop">
-          <b>Drop files or a folder here</b><br>
-          <small>or click to choose · .md .json .yaml .sql .csv .log .txt</small>
-          <input type="file" id="picker" multiple style="display:none">
-          <input type="file" id="pickerDir" webkitdirectory directory multiple style="display:none">
+          <b>Drop files or a folder</b>
+          <small>or click to choose · .md .json .yaml .sql .csv .log</small>
+          <input type="file" id="picker" multiple hidden>
+          <input type="file" id="pickerDir" webkitdirectory directory multiple hidden>
         </div>
-        <div class="row" style="margin-top:8px">
-          <button id="bPickFiles">Choose files</button>
-          <button id="bPickDir">Choose folder</button>
+        <div class="row" style="margin-top:10px">
+          <button id="bPickFiles" class="ghost">Choose files</button>
+          <button id="bPickDir" class="ghost">Choose folder</button>
           <div class="grow"></div>
-          <button id="bClearCtx">Clear</button>
+          <button id="bClearCtx" class="ghost">Clear</button>
         </div>
-        <div id="files" style="margin-top:10px"></div>
+        <div id="files" style="margin-top:12px"></div>
       </div>
 
       <div class="card">
         <h2>Context completeness</h2>
+        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+          <span class="muted" id="ctxPct">—</span>
+        </div>
         <div class="bar"><i id="ctxBar" style="width:0%"></i></div>
-        <div class="muted" id="ctxPct" style="margin:6px 0 10px">—</div>
-        <ul class="plain" id="ctxRows"></ul>
+        <ul class="plain" id="ctxRows" style="margin-top:12px"></ul>
       </div>
     </div>
 
     <div>
-      <div class="card" id="tiersCard">
+      <div class="card">
         <h2>Choose a tier</h2>
-        <div id="tiers"><p class="muted">Run the plan stage to see options.</p></div>
+        <div id="tiers"><p class="muted">Run stage 2 to see the options.</p></div>
       </div>
 
       <div class="card">
         <h2>Readiness</h2>
-        <div id="readiness"><p class="muted">Runs after validation.</p></div>
+        <div id="readiness"><p class="muted">Computed after validation.</p></div>
       </div>
 
       <div class="card">
@@ -183,221 +377,266 @@
     </div>
   </div>
 
-  <p class="muted" style="text-align:center;padding:8px 0 24px">
+  <p class="foot">
     Every button runs the same <span class="mono">run/*.py</span> script you would
-    run by hand — the portal is a remote control, not a second implementation.
+    run by hand. The portal is a remote control, not a second implementation.
   </p>
 </div>
 
 <script>
 const $ = s => document.querySelector(s);
-let logSince = 0, busy = false;
+let logSince = 0, busy = false, lastStage = null;
 
-function fmtBytes(n){
-  if (n < 1024) return n + " B";
-  if (n < 1048576) return (n/1024).toFixed(1) + " KB";
-  return (n/1048576).toFixed(1) + " MB";
-}
+/* theme — remembered per browser, falls back to the OS preference */
+const root = document.documentElement;
+try{
+  const saved = localStorage.getItem("ss-theme");
+  root.dataset.theme = saved
+    || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+}catch(e){ root.dataset.theme = "dark"; }
+$("#theme").onclick = () => {
+  root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+  try{ localStorage.setItem("ss-theme", root.dataset.theme); }catch(e){}
+};
 
-async function api(path, opts){
-  const res = await fetch(path, opts);
-  return res.json();
-}
+const api = (p, o) => fetch(p, o).then(r => r.json());
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const bytes = n => n < 1024 ? n+" B" : n < 1048576 ? (n/1024).toFixed(1)+" KB"
+                                                   : (n/1048576).toFixed(1)+" MB";
 
-async function run(stage){
-  const out = await api("/api/run", {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({stage})
-  });
-  if (!out.ok) { alert(out.error || "could not start"); return; }
-  logSince = 0; $("#log").textContent = "";
+/* which pipeline node a running stage corresponds to */
+const STAGE_NODE = {spine:"discovery", execute:"execution",
+                    execute_denied:"execution", validate:"validation"};
+
+async function run(stage, arg){
+  const out = await api("/api/run", {method:"POST",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify({stage, arg})});
+  if (!out.ok){ alert(out.error || "could not start"); return; }
+  logSince = 0; $("#log").innerHTML = ""; lastStage = stage;
   pollLog();
+}
+
+function colour(line){
+  const t = esc(line);
+  if (/✓|\bOK\b|DONE|success|complete|match|REPAIRED|granted|APPROVED/i.test(line)) return `<span class="g">${t}</span>`;
+  if (/FAIL|ERROR|denied|REJECT|regression|DIFFERS|read-only file system|NO FILES/i.test(line)) return `<span class="r">${t}</span>`;
+  if (/FLOW GUARD|WARN|capped|INCOMPLETE|DO NOT MERGE|attempt/i.test(line)) return `<span class="y">${t}</span>`;
+  if (/^\s*\$|^\s*\[/.test(line)) return `<span class="b">${t}</span>`;
+  return `<span class="d">${t}</span>`;
 }
 
 async function pollLog(){
   const s = await api("/api/log?since=" + logSince);
   if (s.lines && s.lines.length){
     const el = $("#log");
-    const stuck = el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
-    el.textContent += s.lines.join("\n") + "\n";
+    const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
+    el.insertAdjacentHTML("beforeend",
+      s.lines.map(l => `<div class="ln">${colour(l)}</div>`).join(""));
     logSince = s.total;
-    if (stuck) el.scrollTop = el.scrollHeight;
+    if (atEnd) el.scrollTop = el.scrollHeight;
   }
   busy = s.running;
-  $("#stageNow").textContent = s.running
-    ? (s.stage + " · " + s.elapsed + "s")
-    : (s.stage ? s.stage + " finished (exit " + s.code + ")" : "idle");
-  setButtons();
-  if (s.running) setTimeout(pollLog, 900);
-  else refresh();
+  lastStage = s.stage;
+  $("#logMeta").textContent = s.stage
+    ? (s.running ? `— ${s.stage}, ${s.elapsed}s` : `— ${s.stage} finished, exit ${s.code}`)
+    : "";
+  const chip = $("#stageChip");
+  chip.innerHTML = s.running
+    ? `<span class="spinner"></span><span>${s.stage} · ${s.elapsed}s</span>`
+    : `<i class="dot"></i><span>${s.stage ? s.stage+" done" : "idle"}</span>`;
+  $("#track").classList.toggle("busy", !!s.running);
+  buttons();
+  if (s.running) setTimeout(pollLog, 900); else refresh();
 }
 
-function setButtons(){
-  ["#bFleet","#bSpine","#bDenied","#bExecute","#bValidate","#bParity","#bReset"]
+function buttons(){
+  ["#bIngest","#bFleet","#bSpine","#bDenied","#bExecute","#bValidate","#bParity","#bReset"]
     .forEach(id => $(id).disabled = busy);
   $("#bStop").disabled = !busy;
 }
 
-function renderTrack(st){
-  $("#track").innerHTML = st.steps.map(s => {
-    const gate = s.key === "approval" ? " gate" : "";
-    return `<div class="node${s.done ? " done" : ""}${gate}">
-      <b>${s.label}</b><small>${s.done ? s.artifact : "pending"}</small></div>`;
+function renderPipe(st){
+  const activeNode = busy ? STAGE_NODE[lastStage] : null;
+  // the first not-yet-done node of the running stage's group is the live one
+  let active = null;
+  if (activeNode){
+    const i = st.steps.findIndex(s => s.key === activeNode);
+    if (i >= 0){
+      active = st.steps.slice(i).find(s => !s.done) || st.steps[i];
+      if (lastStage === "spine") active = st.steps.slice(0,3).find(s => !s.done) || st.steps[2];
+    }
+  }
+  $("#pipe").innerHTML = st.steps.map(s => {
+    const isActive = active && active.key === s.key;
+    const cls = [ "step", s.done ? "done" : "", isActive ? "active" : "",
+                  s.key === "approval" ? "gate" : "" ].filter(Boolean).join(" ");
+    const mark = s.done ? "✓" : isActive ? "" : "";
+    return `<div class="${cls}"><div class="box">
+      <div class="who">${isActive && !s.done ? '<span class="spinner"></span>'
+        : `<span class="tick">${mark}</span>`}${s.label}</div>
+      <div class="what">${s.done ? s.artifact : (s.key==="approval" ? "awaiting a human" : "pending")}</div>
+    </div><i class="rail"></i></div>`;
   }).join("");
+
+  const done = st.steps.filter(s => s.done).length;
+  $("#trackFill").style.width = Math.round(100*done/st.steps.length) + "%";
+  $("#progRight").textContent = `${done} / ${st.steps.length}`;
+  $("#progLabel").textContent = busy && active ? `running ${active.label.toLowerCase()}…`
+    : done === st.steps.length ? "pipeline complete"
+    : st.steps[3].done ? "approved — ready to execute"
+    : done >= 3 ? "waiting for a human to approve a tier"
+    : done ? "in progress" : "waiting to start";
 }
 
 function renderTiers(st){
   if (!st.tiers.length) return;
-  const approvedId = st.approval && st.approval.tier;
+  const appr = st.approval && st.approval.tier;
   $("#tiers").innerHTML = st.tiers.map(t => {
-    const e = t.estimate || {};
-    const mins = Math.floor((e.seconds||0)/60), secs = (e.seconds||0)%60;
-    const isApproved = approvedId === t.id;
-    return `<div class="tier${t.recommended ? " rec" : ""}">
-      <h3>Tier ${t.id} · ${t.name}
-        ${t.recommended ? '<span class="tag">recommended</span>' : ""}</h3>
-      <p>${t.summary || ""}</p>
-      <div class="meta">${e.files||0} files · risk ${t.risk||"?"} ·
-        ~${mins}m${String(secs).padStart(2,"0")}s ·
-        ~${Math.round((e.tokens||0)/1000)}k tokens · ~$${(e.usd||0).toFixed(2)} (est.)</div>
-      ${t.pick_this_if ? `<p class="muted"><b>Pick if:</b> ${t.pick_this_if}</p>` : ""}
-      <div class="row" style="margin-top:8px">
-        <button class="${t.recommended ? "primary" : ""}" data-tier="${t.id}"
-          ${isApproved ? "disabled" : ""}>
-          ${isApproved ? "Approved ✓" : "Approve Tier " + t.id}</button>
+    const e = t.estimate || {}, m = Math.floor((e.seconds||0)/60), sec = (e.seconds||0)%60;
+    const is = appr === t.id;
+    return `<div class="tier ${t.recommended?"rec":""} ${is?"approved":""}">
+      <h3>Tier ${t.id} · ${esc(t.name||"")}
+        ${is ? '<span class="badge ok">approved</span>'
+             : t.recommended ? '<span class="badge">recommended</span>' : ""}</h3>
+      <p>${esc(t.summary||"")}</p>
+      <div class="stats">
+        <span><b>${e.files||0}</b> files</span>
+        <span>risk <b>${esc(t.risk||"?")}</b></span>
+        <span>~<b>${m}m${String(sec).padStart(2,"0")}s</b></span>
+        <span>~<b>${Math.round((e.tokens||0)/1000)}k</b> tok</span>
+        <span>~<b>$${(e.usd||0).toFixed(2)}</b></span>
       </div>
-    </div>`;
-  }).join("") + (st.recommendation_reason
-    ? `<p class="muted"><b>Why tier ${st.recommended_tier}:</b> ${st.recommendation_reason}</p>`
-    : "") + (approvedId
-    ? `<div class="row"><button id="bRevoke" class="danger">Revoke approval</button></div>`
-    : "");
+      ${t.pick_this_if ? `<p class="muted"><b>Pick if:</b> ${esc(t.pick_this_if)}</p>` : ""}
+      <div class="row" style="margin-top:11px">
+        <button class="${t.recommended && !is ? "primary":""}" data-tier="${t.id}" ${is?"disabled":""}>
+          ${is ? "Approved ✓" : "Approve Tier "+t.id}</button>
+      </div></div>`;
+  }).join("")
+   + (st.recommendation_reason ? `<p class="muted"><b>Why tier ${st.recommended_tier}:</b> ${esc(st.recommendation_reason)}</p>` : "")
+   + (appr ? `<div class="row"><button id="bRevoke" class="danger ghost">Revoke approval</button></div>` : "");
 
   document.querySelectorAll("[data-tier]").forEach(b => b.onclick = async () => {
-    b.disabled = true; b.textContent = "granting…";
-    const out = await api("/api/approve", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({tier: Number(b.dataset.tier)})
-    });
-    $("#log").textContent += "\n" + (out.output || "") + "\n";
+    b.disabled = true; b.innerHTML = '<span class="spinner"></span> granting…';
+    const out = await api("/api/approve", {method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({tier:Number(b.dataset.tier)})});
+    $("#log").insertAdjacentHTML("beforeend",
+      (out.output||"").split("\n").map(l=>`<div class="ln">${colour(l)}</div>`).join(""));
+    $("#log").scrollTop = $("#log").scrollHeight;
     refresh();
   });
   const rev = $("#bRevoke");
   if (rev) rev.onclick = async () => {
     const out = await api("/api/revoke", {method:"POST"});
-    $("#log").textContent += "\n" + (out.output || "") + "\n";
+    $("#log").insertAdjacentHTML("beforeend",
+      (out.output||"").split("\n").map(l=>`<div class="ln">${colour(l)}</div>`).join(""));
     refresh();
   };
 }
 
 function renderReadiness(st){
-  const r = st.readiness;
-  if (!r) return;
-  const pct = Math.round(r.overall * 100);
-  const cls = pct >= 90 ? "ok" : pct >= 60 ? "warn" : "bad";
-  const dims = Object.entries(r.dimensions).map(([k,v]) => {
-    const capped = r.caps_applied && r.caps_applied[k];
-    return `<div class="kv"><span>${k.replace(/_/g," ")}${
-      capped ? ' <small class="warn">capped: missing context</small>' : ""}</span>
-      <span class="mono">${Math.round(v*100)}%</span></div>`;
-  }).join("");
+  const r = st.readiness; if (!r) return;
+  const pct = Math.round(r.overall*100);
+  const cls = pct>=90 ? "ok" : pct>=60 ? "warn" : "bad";
   $("#readiness").innerHTML = `
-    <div style="font-size:30px;font-weight:600" class="${cls}">${pct}%</div>
-    <div class="bar" style="margin:8px 0 12px"><i class="${cls}" style="width:${pct}%"></i></div>
-    ${dims}
-    <p class="${r.blockers.length ? "bad" : "ok"}" style="margin:12px 0 0">
-      <b>${r.recommendation}</b></p>
-    ${r.blockers.length ? "<ul class='plain muted'>" + r.blockers.map(b =>
-      `<li>— ${b.count} ${b.label}</li>`).join("") + "</ul>" : ""}
-    <p class="muted">Computed by <span class="mono">scoring/score.py</span> from
-      counted evidence. No model produced this number.</p>`;
+    <div class="row" style="align-items:baseline;gap:12px">
+      <div class="score">${pct}%</div>
+      <div class="${r.blockers.length?"bad":"ok"}" style="font-weight:600">${r.recommendation}</div>
+    </div>
+    <div class="bar" style="margin:12px 0 14px"><i class="${cls}" style="width:${pct}%"></i></div>
+    ${Object.entries(r.dimensions).map(([k,v])=>`
+      <div class="kv"><span class="k">${k.replace(/_/g," ")}${
+        r.caps_applied&&r.caps_applied[k]?' <span class="warn">· capped, missing context</span>':""}</span>
+      <span class="mono">${Math.round(v*100)}%</span></div>`).join("")}
+    ${r.blockers.length ? `<ul class="plain muted" style="margin-top:10px">${
+      r.blockers.map(b=>`<li>— ${b.count} ${esc(b.label)}</li>`).join("")}</ul>`:""}
+    <p class="muted" style="margin-top:12px">Computed by
+      <span class="mono">scoring/score.py</span> from counted evidence.
+      No model produced this number.</p>`;
 }
 
 function renderRegressions(st){
   if (!st.regressions.length) return;
-  $("#regressions").innerHTML = st.regressions.slice(0,12).map(r =>
-    `<div style="border-bottom:1px solid var(--line);padding:7px 0">
-      <div><b class="mono">${r.rule_id || "?"}</b> ${r.rule || ""}</div>
-      ${r.diagnosis ? `<div class="muted">${r.diagnosis}</div>` : ""}
-      ${r.legacy_source ? `<div class="meta">${r.legacy_source}</div>` : ""}
+  $("#regressions").innerHTML = st.regressions.slice(0,10).map(r=>`
+    <div class="reg">
+      <div><b class="mono bad">${esc(r.rule_id||"?")}</b> ${esc(r.rule||"")}</div>
+      ${r.diagnosis?`<div class="muted">${esc(r.diagnosis)}</div>`:""}
+      ${r.legacy_source?`<div class="mono" style="font-size:11px;color:var(--faint)">${esc(r.legacy_source)}</div>`:""}
     </div>`).join("");
 }
 
-function renderFiles(st){
+function renderCtx(st){
   $("#files").innerHTML = st.context.length
-    ? st.context.map(f => `<div class="file"><span>${f.name}</span>
-        <span><span class="kind">${f.kind}</span> &nbsp;${fmtBytes(f.size)}</span></div>`).join("")
+    ? st.context.map(f=>`<div class="file"><span>${esc(f.name)}</span>
+        <span><span class="kind">${esc(f.kind)}</span> ${bytes(f.size)}</span></div>`).join("")
     : `<p class="muted">No context documents. The repo alone is enough to run.</p>`;
-
   const c = st.completeness;
-  $("#ctxBar").style.width = c.percent + "%";
-  $("#ctxBar").className = c.percent >= 70 ? "ok" : c.percent >= 40 ? "warn" : "";
-  $("#ctxPct").textContent = c.percent + "% — " + c.linked + " of " + c.total
-    + " sources linked. You can run at any level.";
-  $("#ctxRows").innerHTML = c.rows.map(r =>
-    `<li class="kv"><span>${r.linked ? "✓" : "○"} ${r.kind}</span>
-      <span class="muted">${r.unlocks}</span></li>`).join("");
+  const bar = $("#ctxBar");
+  bar.style.width = c.percent+"%";
+  bar.className = c.percent>=70?"ok":c.percent>=40?"warn":"";
+  $("#ctxPct").innerHTML = `<b class="mono">${c.percent}%</b> — ${c.linked} of ${c.total} sources linked. You can run at any level.`;
+  $("#ctxRows").innerHTML = c.rows.map(r=>`
+    <li class="kv"><span class="k">${r.linked?'<span class="ok">✓</span>':"○"} ${esc(r.kind)}</span>
+      <span class="muted">${esc(r.unlocks)}</span></li>`).join("");
 }
 
 function renderMigrated(st){
   if (!st.migrated.length) return;
-  $("#migrated").innerHTML = `<p class="muted">${st.migrated.length} files</p>` +
-    st.migrated.slice(0,30).map(p =>
-      `<div class="file"><a href="/api/file?path=${encodeURIComponent(p)}"
-        target="_blank" class="mono">${p}</a></div>`).join("");
+  $("#migrated").innerHTML = `<p class="muted">${st.migrated.length} files written</p>` +
+    st.migrated.slice(0,30).map(p=>`<div class="file">
+      <a class="mono link" href="/api/file?path=${encodeURIComponent(p)}" target="_blank">${esc(p)}</a>
+    </div>`).join("");
 }
 
 async function refresh(){
   const st = await api("/api/state");
   $("#nasikoLink").href = st.nasiko;
-  const g = st.grant;
-  const pill = $("#grantPill");
-  pill.textContent = "execution: " + g;
-  pill.className = "pill " + (g === "read-write" ? "rw" : "ro");
-  renderTrack(st); renderTiers(st); renderReadiness(st);
-  renderRegressions(st); renderFiles(st); renderMigrated(st);
+  const chip = $("#grantChip"), g = st.grant;
+  chip.className = "chip " + (g==="read-write"?"rw":"ro");
+  chip.innerHTML = `<i class="dot"></i><span>execution: ${g}</span>`;
+  renderPipe(st); renderTiers(st); renderReadiness(st);
+  renderRegressions(st); renderCtx(st); renderMigrated(st);
 }
 
-// stage buttons
+$("#bIngest").onclick   = () => run("ingest", $("#repoUrl").value.trim());
 $("#bFleet").onclick    = () => run("fleet");
 $("#bSpine").onclick    = () => run("spine");
 $("#bDenied").onclick   = () => run("execute_denied");
 $("#bExecute").onclick  = () => run("execute");
 $("#bValidate").onclick = () => run("validate");
 $("#bParity").onclick   = () => run("parity");
-$("#bReset").onclick    = () => { if (confirm("Wipe the run workspace and start clean?")) run("reset"); };
-$("#bStop").onclick     = async () => { await api("/api/stop", {method:"POST"}); };
+$("#bReset").onclick    = () => confirm("Wipe the run workspace and start clean?") && run("reset");
+$("#bStop").onclick     = () => api("/api/stop", {method:"POST"});
 
-// uploads
 const drop = $("#drop");
 drop.onclick = () => $("#picker").click();
-$("#bPickFiles").onclick = () => $("#picker").click();
-$("#bPickDir").onclick = () => $("#pickerDir").click();
-$("#picker").onchange = e => upload(e.target.files);
+$("#bPickFiles").onclick = e => { e.stopPropagation(); $("#picker").click(); };
+$("#bPickDir").onclick   = e => { e.stopPropagation(); $("#pickerDir").click(); };
+$("#picker").onchange    = e => upload(e.target.files);
 $("#pickerDir").onchange = e => upload(e.target.files);
-["dragenter","dragover"].forEach(ev =>
-  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
-["dragleave","drop"].forEach(ev =>
-  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove("over"); }));
 drop.addEventListener("drop", e => upload(e.dataTransfer.files));
 
 async function upload(files){
   if (!files || !files.length) return;
   const fd = new FormData();
   for (const f of files) fd.append("file", f, f.webkitRelativePath || f.name);
-  drop.textContent = "uploading " + files.length + " file(s)…";
-  await fetch("/api/upload", {method:"POST", body: fd});
-  drop.innerHTML = "<b>Drop files or a folder here</b><br><small>or click to choose</small>";
+  const keep = drop.innerHTML;
+  drop.innerHTML = `<b>uploading ${files.length} file(s)…</b>`;
+  await fetch("/api/upload", {method:"POST", body:fd});
+  drop.innerHTML = keep;
   refresh();
 }
-
-$("#bClearCtx").onclick = async () => {
+$("#bClearCtx").onclick = async e => {
+  e.stopPropagation();
   await api("/api/context/clear", {method:"POST"});
   refresh();
 };
 
-refresh();
-pollLog();
+refresh(); pollLog();
 setInterval(() => { if (!busy) refresh(); }, 5000);
 </script>
 </body>
