@@ -24,9 +24,39 @@ The migrated code kept both traps: the empty branch survived *with a comment
 citing the legacy line*, and the nullable `ORDER BY` became
 `ORDER BY quantity ASC NULLS FIRST`.
 
-**Timings** (qwen3-coder-next via Bedrock): discovery 58s, assessment 11s,
-planning 33s, execution 44s, validation 42s, repair cycle 213s. Full local
-pipeline about 6 minutes.
+**Timings** (qwen3-coder-next via Bedrock): discovery 58-82s, assessment 11-29s,
+planning 19-33s, execution 44-76s, validation 42s. Full local pipeline 6-12
+minutes depending on how many repair cycles it takes.
+
+### Run-to-run variance is real, and the system stays honest across it
+
+Two clean runs of the same pipeline produced materially different migrations:
+
+| | run A | run B |
+|---|---|---|
+| Files migrated | 17 | 9 |
+| Regressions found | 10 | 3, then 2, then 6, then 4 |
+| Repair outcome | clean after 1 attempt | **stopped by the flow guard at 3** |
+| Readiness | 60% | 52% |
+| Parity on migrated pricing | 10/10 | **10/10** |
+
+Run B is the more interesting one. The repair loop did not converge — the
+regression count went *up* between attempts — and the cap stopped it:
+
+```
+FLOW GUARD — stopped after 3 attempts, 4 regression(s) remain
+ESCALATED TO HUMAN REVIEW
+```
+
+Two things to take from that. The system did not claim success it had not
+earned: readiness dropped to 52% and said DO NOT MERGE YET. And the pricing it
+*did* migrate was still behaviourally perfect, 10/10 against the legacy
+implementation, including the undocumented coupon rule. Partial work,
+honestly reported, with the good part verifiable.
+
+This is also the flow guard demo, unstaged. It was not reproducible on demand
+during the build; it happened because the migration genuinely failed to
+converge.
 
 ---
 
@@ -152,7 +182,7 @@ gate in the build plan was never needed because we took the fallback first.
 | MAF spine on Nasiko | runs; step 3 degrades without shared artifacts |
 | Approval gate | **works**, kernel-enforced locally |
 | Repair loop | **works**, bounded |
-| Flow guard stopping a runaway | capped at 3 in the harness; not yet demonstrated *hitting* the cap, because the repair succeeded on attempt 1 |
+| Flow guard stopping a runaway | **observed** — run B hit the 3-attempt cap and escalated |
 | Per-agent cost | not attributed |
 | Web portal | not built — CLI only |
 | Tier 3 execution | priced, not executed |
