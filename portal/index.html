@@ -279,6 +279,24 @@ ul.plain{list-style:none;margin:0;padding:0}
 
 <div class="wrap">
 
+  <div class="card" id="repoCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <h2 style="margin:0">Target Legacy Codebase</h2>
+      <div id="repoBadge" class="row">
+        <span class="pill" id="repoStatusPill">Loading repository…</span>
+      </div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <input type="text" id="repoUrl" style="flex:1;min-width:320px;padding:8px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-family:var(--mono);font-size:13px" value="https://github.com/pragnyamehar-create/legacy-acme-orders" placeholder="https://github.com/org/repo">
+      <button id="bCloneRepo" class="primary">Clone &amp; Link Repo</button>
+      <button id="bResetRepo">Use Local Default</button>
+      <a id="repoGithubLink" href="https://github.com/pragnyamehar-create/legacy-acme-orders" target="_blank" rel="noopener" style="font-size:13px;margin-left:4px">View on GitHub ↗</a>
+    </div>
+    <div class="muted" id="repoDetails" style="margin-top:8px;font-size:12px">
+      Ready for discovery: Flask 1.1 + MySQL + Celery with 3 planted migration traps.
+    </div>
+  </div>
+
   <div class="card">
     <h2>Source repository</h2>
     <div class="row">
@@ -287,6 +305,8 @@ ul.plain{list-style:none;margin:0;padding:0}
         placeholder="https://github.com/org/legacy-app" spellcheck="false">
       <button id="bIngest" class="primary">Load repository</button>
     </div>
+    <div class="row" style="margin-top:11px"><span class="chip" id="repoChip">
+      <i class="dot"></i><span>no repository loaded</span></span></div>
     <p class="muted" style="margin:10px 0 0">
       Clones the repo into a fresh workspace. If it ships a
       <span class="mono">stackshift.json</span>, its stated aim drives the tier
@@ -588,12 +608,40 @@ function renderMigrated(st){
     </div>`).join("");
 }
 
+function renderRepo(st){
+  const r = st.repo;
+  if (!r) return;
+  const input = $("#repoUrl");
+  if (r.url && document.activeElement !== input) {
+    input.value = r.url;
+  }
+  $("#repoGithubLink").href = r.url;
+  const pill = $("#repoStatusPill");
+  if (r.linked) {
+    pill.textContent = (r.source === "github" ? "GitHub: " : "Local: ") + r.name + " (" + r.files_count + " files)";
+    pill.className = "pill ok";
+    $("#repoDetails").innerHTML = `<b>Connected:</b> <a href="${r.url}" target="_blank">${r.url}</a> · <b>${r.files_count} files</b> · 3 migration traps active. Ready for fleet analysis.`;
+  } else {
+    pill.textContent = "No repository linked";
+    pill.className = "pill bad";
+    $("#repoDetails").innerHTML = `<span class="bad">Please link a repository before running the migration pipeline.</span>`;
+  }
+}
+
 async function refresh(){
   const st = await api("/api/state");
   $("#nasikoLink").href = st.nasiko;
   const chip = $("#grantChip"), g = st.grant;
   chip.className = "chip " + (g==="read-write"?"rw":"ro");
   chip.innerHTML = `<i class="dot"></i><span>execution: ${g}</span>`;
+  const r = st.repo || {};
+  const rc = $("#repoChip");
+  rc.className = "chip " + (r.linked ? "rw" : "ro");
+  rc.innerHTML = `<i class="dot"></i><span>${r.linked
+    ? `${esc(r.name||"repo")} · ${r.files_count} files · ${esc(r.source||"")}`
+    : "no repository loaded"}</span>`;
+  if (r.url && !document.activeElement.matches("#repoUrl")) $("#repoUrl").value = r.url;
+
   renderPipe(st); renderTiers(st); renderReadiness(st);
   renderRegressions(st); renderCtx(st); renderMigrated(st);
 }

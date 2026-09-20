@@ -53,6 +53,18 @@ def adopt(source_name):
     """Pull the repo's own config and context into the workspace."""
     notes = []
 
+    # Record where this came from BEFORE dropping .git. The portal reads
+    # repo_info.json; without it, a lookup of remote.origin.url walks up out of
+    # the deleted legacy/.git and reports StackShift's own origin instead.
+    info = {
+        "url": source_name,
+        "name": source_name.rstrip("/").split("/")[-1].replace(".git", ""),
+        "source": "local" if source_name.startswith(("legacy/", "./", "/")) else "github",
+    }
+    os.makedirs(os.path.join(WORKSPACE, ".stackshift"), exist_ok=True)
+    with open(os.path.join(WORKSPACE, ".stackshift", "repo_info.json"), "w") as fh:
+        json.dump(info, fh, indent=2)
+
     # Its git history is not part of what we analyse, and it confuses the
     # agents' file listings.
     shutil.rmtree(os.path.join(LEGACY, ".git"), ignore_errors=True)
