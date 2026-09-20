@@ -65,25 +65,51 @@ def _env_from_nasiko():
     return found
 
 
+def start_agent(name, env=None, writable=False):
+    """Start one agent container.
+
+    `writable` controls whether the workspace is mounted read-write. This is
+    the local enforcement of the approval gate: an unapproved Execution agent
+    gets the workspace read-only, so a write fails in the kernel rather than
+    being declined by a prompt or an if-statement we wrote. Deployed on Nasiko
+    the same boundary is a per-agent ACL grant; locally it is the mount flag.
+
+    Every other role is read-only permanently -- for them this is not a gate,
+    it is what they are.
+    """
+    env = env or _env_from_nasiko()
+    container = "ss-%s" % name
+    subprocess.run(["docker", "rm", "-f", container],
+                   capture_output=True, check=False)
+    mode = "rw" if writable else "ro"
+    cmd = ["docker", "run", "-d", "--name", container,
+           "-p", "%d:8000" % AGENTS[name],
+           "-v", "%s:/workspace:%s" % (WORKSPACE, mode)]
+    # Artifacts must stay writable for every role even when source is not, so
+    # a read-only agent can still report what it found.
+    if not writable:
+        cmd += ["-v", "%s:/workspace/.stackshift:rw"
+                % os.path.join(WORKSPACE, ".stackshift")]
+    for key, val in env.items():
+        cmd += ["-e", "%s=%s" % (key, val)]
+    cmd.append("stackshift-%s:latest" % name)
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    return proc.returncode == 0, proc.stderr.strip()
+
+
 def up():
     env = _env_from_nasiko()
-    os.makedirs(WORKSPACE, exist_ok=True)
+    os.makedirs(os.path.join(WORKSPACE, ".stackshift"), exist_ok=True)
     print()
-    for name, port in AGENTS.items():
-        container = "ss-%s" % name
-        subprocess.run(["docker", "rm", "-f", container],
-                       capture_output=True, check=False)
-        cmd = ["docker", "run", "-d", "--name", container,
-               "-p", "%d:8000" % port,
-               "-v", "%s:/workspace" % WORKSPACE]
-        for key, val in env.items():
-            cmd += ["-e", "%s=%s" % (key, val)]
-        cmd.append("stackshift-%s:latest" % name)
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        if proc.returncode != 0:
-            print("  FAILED %-12s %s" % (name, proc.stderr.strip()[:90]))
+    for name in AGENTS:
+        # Nothing starts writable. Execution becomes writable only when a human
+        # approves a tier -- see run/approve.py.
+        ok, err = start_agent(name, env, writable=False)
+        if not ok:
+            print("  FAILED %-12s %s" % (name, err[:90]))
         else:
-            print("  started %-12s :%d" % (name, port))
+            print("  started %-12s :%-6d workspace read-only"
+                  % (name, AGENTS[name]))
     print()
     _wait_ready()
 
@@ -185,33 +211,62 @@ def artifacts():
     return sorted(os.listdir(path))
 
 
-def ask_expecting(agent, prompt, expect, attempts=2):
-    """Ask, then verify the named artifacts actually landed on disk.
+def ask_expecting(agent, prompt, expect, attempts=2, validator=None):
+    """Ask, then verify the named artifacts landed AND are not hollow.
 
     Models reliably describe the JSON they would write instead of calling
-    write_artifact. The prompt says not to; this makes it not matter. If an
-    expected artifact is missing we say exactly which one and ask again, rather
-    than discovering the gap in a later agent that cannot recover from it.
+    write_artifact. The prompt says not to; this makes it not matter.
+
+    The retry re-sends the ORIGINAL task with a note, rather than asking the
+    agent to "just write the artifact now". Asking only for the artifact
+    produced a correctly-shaped report with every count set to zero — a false
+    all-clear, which for this system is the worst possible output. An agent
+    that has to redo the work produces real findings; one asked only to emit
+    JSON produces a skeleton.
+
+    `validator(dict) -> str|None` may reject a parsed artifact by returning the
+    reason. Use it to catch a report that is well-formed but says nothing.
     """
+    original = prompt
     result = None
     for attempt in range(1, attempts + 1):
         result = ask(agent, prompt)
         if not result["ok"]:
             return result
+
         missing = [name for name in expect
                    if not os.path.isfile(os.path.join(WORKSPACE, ".stackshift", name))]
+        rejected = None
+        if not missing and validator:
+            for name in expect:
+                path = os.path.join(WORKSPACE, ".stackshift", name)
+                try:
+                    with open(path) as fh:
+                        parsed = json.load(fh)
+                except ValueError as exc:
+                    rejected = "%s is not valid JSON (%s)" % (name, exc)
+                    break
+                reason = validator(parsed)
+                if reason:
+                    rejected = "%s %s" % (name, reason)
+                    break
+
         result["missing"] = missing
+        result["rejected"] = rejected
         result["attempts"] = attempt
-        if not missing:
+        if not missing and not rejected:
             return result
+
         if attempt < attempts:
-            print("    [%s] %s not written, asking again"
-                  % (agent, ", ".join(missing)))
+            problem = ("did not write %s" % ", ".join(missing) if missing
+                       else rejected)
+            print("    [%s] %s — redoing the task" % (agent, problem))
             prompt = (
-                "You did not call write_artifact, so nothing was delivered. "
-                "Your analysis is not lost — repeat it now as a write_artifact "
-                "call for each of: %s. Content must be valid JSON. Do nothing "
-                "else." % ", ".join(missing)
+                "Your previous attempt %s.\n\n"
+                "Do the work again, properly, and finish by calling "
+                "write_artifact. Do not emit a template or placeholder: every "
+                "count must come from something you actually read or ran.\n\n"
+                "%s" % (problem, original)
             )
     return result
 
