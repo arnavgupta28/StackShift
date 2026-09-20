@@ -23,6 +23,8 @@ allowed to touch, stops them running away, and records every decision as a trace
 | 6 | [06-nasiko-map.md](06-nasiko-map.md) | Every Nasiko feature we use, where, and how we prove it on stage |
 | 7 | [07-build-plan.md](07-build-plan.md) | What we build today, in what order, with the cut lines |
 | 8 | [08-demo-script.md](08-demo-script.md) | The run-of-show and the 2-minute pitch |
+| 9 | [09-findings.md](09-findings.md) | **What we measured after building it** — including what did not work |
+| — | [TODO.md](TODO.md) | Live build checklist and how to run everything |
 
 ---
 

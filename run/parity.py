@@ -45,12 +45,30 @@ CASES = [
 ]
 
 
-def load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
+def load(path, name, root):
+    """Import one pricing module with its own tree on sys.path.
+
+    The migrated code's import style varies between runs -- it may use
+    `from services.models import Customer` or plain module imports -- so the
+    directory that makes its imports resolve has to lead sys.path while it is
+    being executed, and be removed afterwards so the other implementation does
+    not accidentally resolve against it.
+    """
+    sys.path.insert(0, root)
+    try:
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        # Drop the stale `services`/`models` packages this import cached, or
+        # the second module silently reuses the first one's.
+        for mod in [m for m in sys.modules
+                    if m.split(".")[0] in ("services", "models", "repositories",
+                                           "config", "workers")]:
+            del sys.modules[mod]
+        sys.path.remove(root)
 
 
 def main():
@@ -62,8 +80,10 @@ def main():
             sys.exit("missing %s — run the migration first" % os.path.relpath(path, ROOT))
 
     try:
-        legacy = load(legacy_path, "legacy_pricing")
-        migrated = load(migrated_path, "migrated_pricing")
+        legacy = load(legacy_path, "legacy_pricing",
+                      os.path.join(WORKSPACE, "legacy"))
+        migrated = load(migrated_path, "migrated_pricing",
+                        os.path.join(WORKSPACE, "migrated"))
     except Exception as exc:
         sys.exit("could not import both modules: %s: %s" % (type(exc).__name__, exc))
 
