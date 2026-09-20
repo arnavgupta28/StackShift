@@ -39,6 +39,14 @@ body{
   font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;
   transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
 }
+/* starfield — behind the aurora, ignored by pointers, absent in light mode */
+#sky{
+  position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;
+  opacity:1;transition:opacity .6s var(--ease);
+}
+:root[data-theme="light"] #sky{opacity:0}
+@media (prefers-reduced-motion:reduce){#sky{opacity:.35}}
+
 /* ambient aurora */
 body::before{
   content:"";position:fixed;inset:-30% -10% auto -10%;height:70vh;z-index:0;
@@ -262,6 +270,7 @@ ul.plain{list-style:none;margin:0;padding:0}
 </style>
 </head>
 <body>
+<canvas id="sky" aria-hidden="true"></canvas>
 
 <header>
   <div class="hdr">
@@ -683,6 +692,72 @@ $("#bClearCtx").onclick = async e => {
   await api("/api/context/clear", {method:"POST"});
   refresh();
 };
+
+/* ── starfield ──────────────────────────────────────────────
+   Deliberately understated: it is a backdrop for a tool people read, not the
+   point of the page. Slow drift, shallow twinkle, low opacity, and it stops
+   entirely when the tab is hidden or the user asks for reduced motion. */
+(function sky(){
+  const cv = document.getElementById("sky");
+  const ctx = cv.getContext("2d", {alpha:true});
+  const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const TINTS = ["255,255,255", "255,255,255", "255,255,255",
+                 "34,211,238", "168,85,247", "59,130,246"];
+  let stars = [], w = 0, h = 0, dpr = 1, raf = null;
+
+  function build(){
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // density by area, capped so a big monitor does not turn into confetti
+    const n = Math.min(160, Math.round(w * h / 15000));
+    stars = Array.from({length:n}, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: Math.random() * 0.9 + 0.35,
+      a: Math.random() * 0.34 + 0.12,          // base alpha, kept low
+      t: Math.random() * Math.PI * 2,          // twinkle phase
+      ts: Math.random() * 0.5 + 0.25,          // twinkle speed
+      vx: (Math.random() - 0.35) * 0.028,      // a slow, mostly-rightward drift
+      vy: (Math.random() - 0.5) * 0.016,
+      c: TINTS[(Math.random() * TINTS.length) | 0],
+    }));
+  }
+
+  function frame(now){
+    ctx.clearRect(0, 0, w, h);
+    const t = now / 1000;
+    for (const s of stars){
+      s.x += s.vx; s.y += s.vy;
+      if (s.x < -2) s.x = w + 2; else if (s.x > w + 2) s.x = -2;
+      if (s.y < -2) s.y = h + 2; else if (s.y > h + 2) s.y = -2;
+      const alpha = calm ? s.a : s.a * (0.72 + 0.28 * Math.sin(s.t + t * s.ts));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, 6.2832);
+      ctx.fillStyle = "rgba(" + s.c + "," + alpha.toFixed(3) + ")";
+      ctx.fill();
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  function start(){ if (!raf) raf = requestAnimationFrame(frame); }
+  function stop(){ if (raf){ cancelAnimationFrame(raf); raf = null; } }
+
+  build();
+  if (calm){ ctx.clearRect(0,0,w,h); frame(0); stop(); }   // draw once, hold still
+  else start();
+
+  // Do not burn a core animating a tab nobody is looking at during a long run.
+  document.addEventListener("visibilitychange",
+    () => document.hidden || calm ? stop() : start());
+
+  let resizeTimer;
+  addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { build(); if (calm) frame(0); }, 160);
+  });
+})();
 
 refresh(); pollLog();
 setInterval(() => { if (!busy) refresh(); }, 5000);
