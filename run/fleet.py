@@ -185,6 +185,37 @@ def artifacts():
     return sorted(os.listdir(path))
 
 
+def ask_expecting(agent, prompt, expect, attempts=2):
+    """Ask, then verify the named artifacts actually landed on disk.
+
+    Models reliably describe the JSON they would write instead of calling
+    write_artifact. The prompt says not to; this makes it not matter. If an
+    expected artifact is missing we say exactly which one and ask again, rather
+    than discovering the gap in a later agent that cannot recover from it.
+    """
+    result = None
+    for attempt in range(1, attempts + 1):
+        result = ask(agent, prompt)
+        if not result["ok"]:
+            return result
+        missing = [name for name in expect
+                   if not os.path.isfile(os.path.join(WORKSPACE, ".stackshift", name))]
+        result["missing"] = missing
+        result["attempts"] = attempt
+        if not missing:
+            return result
+        if attempt < attempts:
+            print("    [%s] %s not written, asking again"
+                  % (agent, ", ".join(missing)))
+            prompt = (
+                "You did not call write_artifact, so nothing was delivered. "
+                "Your analysis is not lost — repeat it now as a write_artifact "
+                "call for each of: %s. Content must be valid JSON. Do nothing "
+                "else." % ", ".join(missing)
+            )
+    return result
+
+
 def main():
     args = sys.argv[1:]
     if not args:

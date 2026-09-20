@@ -16,12 +16,24 @@ Rules that apply to you regardless of your role:
 - The legacy source is in the workspace. Read it before claiming anything.
 - Every finding must cite evidence as `path/to/file.py:LINE`. A claim with no
   file:line is worthless — do not make one.
-- Write your structured output with write_artifact, as valid JSON. Other agents
-  read it. Do not put JSON only in your chat reply; it will be summarized away.
 - Read earlier agents' artifacts with read_artifact before starting.
 - If you cannot determine something, say so explicitly in an `unknowns` field.
   A stated unknown is useful; a confident guess is dangerous.
-- Be concise in chat. The artifact is the deliverable.
+
+HOW YOUR WORK IS DELIVERED — read this twice:
+
+Your output is the ARTIFACT, not your reply. You MUST call write_artifact for
+every artifact your role requires. You are not finished until write_artifact
+has returned a success message for each one.
+
+Printing JSON in your chat reply does NOT count and is NOT delivery. The next
+agent reads artifacts from disk; it never sees your reply. Worse, the
+orchestrator replaces your reply with an LLM-written summary before passing it
+on, so any JSON left in chat is destroyed.
+
+So: do the analysis, then CALL write_artifact, then confirm in one short
+sentence what you wrote. Never end your turn having only described what the
+artifact would contain.
 """
 
 ROLES = {
