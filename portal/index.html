@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StackShift</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c2230; --line:#2a3140;
+    --ink:#e6edf3; --dim:#8b949e; --faint:#6e7681;
+    --accent:#4493f8; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f6f8fa; --panel:#fff; --panel2:#f0f3f6; --line:#d8dee4;
+      --ink:#1f2328; --dim:#59636e; --faint:#818b98;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  header{border-bottom:1px solid var(--line);padding:14px 16px;display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap;background:var(--panel)}
+  h1{font-size:16px;margin:0;letter-spacing:-.01em}
+  h1 span{color:var(--dim);font-weight:400;margin-left:8px}
+  .grow{flex:1}
+  a{color:var(--accent)}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:14px;margin-bottom:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--dim);margin:0 0 12px}
+  button{font:inherit;background:var(--panel2);color:var(--ink);cursor:pointer;
+    border:1px solid var(--line);border-radius:7px;padding:7px 12px}
+  button:hover:not(:disabled){border-color:var(--accent)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.danger{border-color:var(--bad);color:var(--bad)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+  /* pipeline tracker */
+  .track{display:flex;gap:6px;flex-wrap:wrap}
+  .node{flex:1;min-width:104px;border:1px solid var(--line);border-radius:8px;
+    padding:9px 10px;background:var(--panel2);position:relative}
+  .node b{display:block;font-size:12px;font-weight:600}
+  .node small{color:var(--faint);font-size:11px}
+  .node.done{border-color:var(--ok)}
+  .node.done b::after{content:" ✓";color:var(--ok)}
+  .node.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .node.gate{border-style:dashed}
+
+  /* tiers */
+  .tier{border:1px solid var(--line);border-radius:9px;padding:12px;
+    margin-bottom:10px;background:var(--panel2)}
+  .tier.rec{border-color:var(--accent)}
+  .tier h3{margin:0 0 4px;font-size:14px}
+  .tier .tag{font-size:10px;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--accent);border:1px solid var(--accent);border-radius:20px;
+    padding:1px 8px;margin-left:8px;vertical-align:2px}
+  .tier p{margin:5px 0;color:var(--dim);font-size:13px}
+  .meta{font-family:var(--mono);font-size:12px;color:var(--faint)}
+
+  /* log */
+  pre.log{background:#0a0d12;color:#c9d1d9;border:1px solid var(--line);
+    border-radius:8px;padding:12px;font-family:var(--mono);font-size:12px;
+    line-height:1.45;height:340px;overflow:auto;margin:0;white-space:pre-wrap}
+  :root:not([data-theme="dark"]) pre.log{background:#0d1117}
+
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:5px 0;
+    border-bottom:1px solid var(--line);font-size:13px}
+  .kv:last-child{border:0}
+  .kv span:first-child{color:var(--dim)}
+  .mono{font-family:var(--mono)}
+  .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+
+  /* dropzone */
+  .drop{border:1.5px dashed var(--line);border-radius:9px;padding:20px;
+    text-align:center;color:var(--dim);cursor:pointer;background:var(--panel2)}
+  .drop.over{border-color:var(--accent);color:var(--accent)}
+  .file{display:flex;justify-content:space-between;gap:8px;font-size:12px;
+    padding:4px 0;border-bottom:1px solid var(--line)}
+  .kind{font-family:var(--mono);color:var(--accent);font-size:11px}
+
+  .bar{height:6px;border-radius:4px;background:var(--panel2);overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .bar i.ok{background:var(--ok)} .bar i.warn{background:var(--warn)}
+  .bar i.bad{background:var(--bad)}
+  .muted{color:var(--dim);font-size:12px}
+  ul.plain{list-style:none;margin:0;padding:0}
+  .pill{display:inline-block;font-size:11px;font-family:var(--mono);
+    border:1px solid var(--line);border-radius:20px;padding:1px 9px}
+  .pill.ro{color:var(--warn);border-color:var(--warn)}
+  .pill.rw{color:var(--ok);border-color:var(--ok)}
+</style>
+</head>
+<body>
+<header>
+  <h1>StackShift <span>migration control</span></h1>
+  <span class="pill" id="grantPill">grant …</span>
+  <div class="grow"></div>
+  <span class="muted" id="stageNow">idle</span>
+  <a id="nasikoLink" href="http://localhost:8080" target="_blank" rel="noopener">Nasiko dashboard ↗</a>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>Pipeline</h2>
+    <div class="track" id="track"></div>
+    <div class="row" style="margin-top:12px">
+      <button id="bFleet">1 · Start fleet</button>
+      <button id="bSpine" class="primary">2 · Discover → Assess → Plan</button>
+      <button id="bDenied">3 · Try execute (no approval)</button>
+      <button id="bExecute">4 · Execute</button>
+      <button id="bValidate">5 · Validate &amp; repair</button>
+      <button id="bParity">6 · Parity check</button>
+      <div class="grow"></div>
+      <button id="bStop" class="danger">Stop</button>
+      <button id="bReset">Reset</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Live output</h2>
+        <pre class="log" id="log">Nothing running yet. Pick a stage above.</pre>
+      </div>
+
+      <div class="card">
+        <h2>Context documents <span class="muted">— optional</span></h2>
+        <p class="muted" style="margin-top:-6px">
+          Drop your OpenAPI spec, schema dump, architecture notes, ticket export
+          or a traffic sample. Everything here is optional — the repo alone is
+          enough — but each one makes the plan less of a guess.
+        </p>
+        <div class="drop" id="drop">
+          <b>Drop files or a folder here</b><br>
+          <small>or click to choose · .md .json .yaml .sql .csv .log .txt</small>
+          <input type="file" id="picker" multiple style="display:none">
+          <input type="file" id="pickerDir" webkitdirectory directory multiple style="display:none">
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="bPickFiles">Choose files</button>
+          <button id="bPickDir">Choose folder</button>
+          <div class="grow"></div>
+          <button id="bClearCtx">Clear</button>
+        </div>
+        <div id="files" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h2>Context completeness</h2>
+        <div class="bar"><i id="ctxBar" style="width:0%"></i></div>
+        <div class="muted" id="ctxPct" style="margin:6px 0 10px">—</div>
+        <ul class="plain" id="ctxRows"></ul>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" id="tiersCard">
+        <h2>Choose a tier</h2>
+        <div id="tiers"><p class="muted">Run the plan stage to see options.</p></div>
+      </div>
+
+      <div class="card">
+        <h2>Readiness</h2>
+        <div id="readiness"><p class="muted">Runs after validation.</p></div>
+      </div>
+
+      <div class="card">
+        <h2>Regressions</h2>
+        <div id="regressions"><p class="muted">None reported yet.</p></div>
+      </div>
+
+      <div class="card">
+        <h2>Migrated output</h2>
+        <div id="migrated"><p class="muted">Nothing written yet.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="muted" style="text-align:center;padding:8px 0 24px">
+    Every button runs the same <span class="mono">run/*.py</span> script you would
+    run by hand — the portal is a remote control, not a second implementation.
+  </p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let logSince = 0, busy = false;
+
+function fmtBytes(n){
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n/1024).toFixed(1) + " KB";
+  return (n/1048576).toFixed(1) + " MB";
+}
+
+async function api(path, opts){
+  const res = await fetch(path, opts);
+  return res.json();
+}
+
+async function run(stage){
+  const out = await api("/api/run", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({stage})
+  });
+  if (!out.ok) { alert(out.error || "could not start"); return; }
+  logSince = 0; $("#log").textContent = "";
+  pollLog();
+}
+
+async function pollLog(){
+  const s = await api("/api/log?since=" + logSince);
+  if (s.lines && s.lines.length){
+    const el = $("#log");
+    const stuck = el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
+    el.textContent += s.lines.join("\n") + "\n";
+    logSince = s.total;
+    if (stuck) el.scrollTop = el.scrollHeight;
+  }
+  busy = s.running;
+  $("#stageNow").textContent = s.running
+    ? (s.stage + " · " + s.elapsed + "s")
+    : (s.stage ? s.stage + " finished (exit " + s.code + ")" : "idle");
+  setButtons();
+  if (s.running) setTimeout(pollLog, 900);
+  else refresh();
+}
+
+function setButtons(){
+  ["#bFleet","#bSpine","#bDenied","#bExecute","#bValidate","#bParity","#bReset"]
+    .forEach(id => $(id).disabled = busy);
+  $("#bStop").disabled = !busy;
+}
+
+function renderTrack(st){
+  $("#track").innerHTML = st.steps.map(s => {
+    const gate = s.key === "approval" ? " gate" : "";
+    return `<div class="node${s.done ? " done" : ""}${gate}">
+      <b>${s.label}</b><small>${s.done ? s.artifact : "pending"}</small></div>`;
+  }).join("");
+}
+
+function renderTiers(st){
+  if (!st.tiers.length) return;
+  const approvedId = st.approval && st.approval.tier;
+  $("#tiers").innerHTML = st.tiers.map(t => {
+    const e = t.estimate || {};
+    const mins = Math.floor((e.seconds||0)/60), secs = (e.seconds||0)%60;
+    const isApproved = approvedId === t.id;
+    return `<div class="tier${t.recommended ? " rec" : ""}">
+      <h3>Tier ${t.id} · ${t.name}
+        ${t.recommended ? '<span class="tag">recommended</span>' : ""}</h3>
+      <p>${t.summary || ""}</p>
+      <div class="meta">${e.files||0} files · risk ${t.risk||"?"} ·
+        ~${mins}m${String(secs).padStart(2,"0")}s ·
+        ~${Math.round((e.tokens||0)/1000)}k tokens · ~$${(e.usd||0).toFixed(2)} (est.)</div>
+      ${t.pick_this_if ? `<p class="muted"><b>Pick if:</b> ${t.pick_this_if}</p>` : ""}
+      <div class="row" style="margin-top:8px">
+        <button class="${t.recommended ? "primary" : ""}" data-tier="${t.id}"
+          ${isApproved ? "disabled" : ""}>
+          ${isApproved ? "Approved ✓" : "Approve Tier " + t.id}</button>
+      </div>
+    </div>`;
+  }).join("") + (st.recommendation_reason
+    ? `<p class="muted"><b>Why tier ${st.recommended_tier}:</b> ${st.recommendation_reason}</p>`
+    : "") + (approvedId
+    ? `<div class="row"><button id="bRevoke" class="danger">Revoke approval</button></div>`
+    : "");
+
+  document.querySelectorAll("[data-tier]").forEach(b => b.onclick = async () => {
+    b.disabled = true; b.textContent = "granting…";
+    const out = await api("/api/approve", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({tier: Number(b.dataset.tier)})
+    });
+    $("#log").textContent += "\n" + (out.output || "") + "\n";
+    refresh();
+  });
+  const rev = $("#bRevoke");
+  if (rev) rev.onclick = async () => {
+    const out = await api("/api/revoke", {method:"POST"});
+    $("#log").textContent += "\n" + (out.output || "") + "\n";
+    refresh();
+  };
+}
+
+function renderReadiness(st){
+  const r = st.readiness;
+  if (!r) return;
+  const pct = Math.round(r.overall * 100);
+  const cls = pct >= 90 ? "ok" : pct >= 60 ? "warn" : "bad";
+  const dims = Object.entries(r.dimensions).map(([k,v]) => {
+    const capped = r.caps_applied && r.caps_applied[k];
+    return `<div class="kv"><span>${k.replace(/_/g," ")}${
+      capped ? ' <small class="warn">capped: missing context</small>' : ""}</span>
+      <span class="mono">${Math.round(v*100)}%</span></div>`;
+  }).join("");
+  $("#readiness").innerHTML = `
+    <div style="font-size:30px;font-weight:600" class="${cls}">${pct}%</div>
+    <div class="bar" style="margin:8px 0 12px"><i class="${cls}" style="width:${pct}%"></i></div>
+    ${dims}
+    <p class="${r.blockers.length ? "bad" : "ok"}" style="margin:12px 0 0">
+      <b>${r.recommendation}</b></p>
+    ${r.blockers.length ? "<ul class='plain muted'>" + r.blockers.map(b =>
+      `<li>— ${b.count} ${b.label}</li>`).join("") + "</ul>" : ""}
+    <p class="muted">Computed by <span class="mono">scoring/score.py</span> from
+      counted evidence. No model produced this number.</p>`;
+}
+
+function renderRegressions(st){
+  if (!st.regressions.length) return;
+  $("#regressions").innerHTML = st.regressions.slice(0,12).map(r =>
+    `<div style="border-bottom:1px solid var(--line);padding:7px 0">
+      <div><b class="mono">${r.rule_id || "?"}</b> ${r.rule || ""}</div>
+      ${r.diagnosis ? `<div class="muted">${r.diagnosis}</div>` : ""}
+      ${r.legacy_source ? `<div class="meta">${r.legacy_source}</div>` : ""}
+    </div>`).join("");
+}
+
+function renderFiles(st){
+  $("#files").innerHTML = st.context.length
+    ? st.context.map(f => `<div class="file"><span>${f.name}</span>
+        <span><span class="kind">${f.kind}</span> &nbsp;${fmtBytes(f.size)}</span></div>`).join("")
+    : `<p class="muted">No context documents. The repo alone is enough to run.</p>`;
+
+  const c = st.completeness;
+  $("#ctxBar").style.width = c.percent + "%";
+  $("#ctxBar").className = c.percent >= 70 ? "ok" : c.percent >= 40 ? "warn" : "";
+  $("#ctxPct").textContent = c.percent + "% — " + c.linked + " of " + c.total
+    + " sources linked. You can run at any level.";
+  $("#ctxRows").innerHTML = c.rows.map(r =>
+    `<li class="kv"><span>${r.linked ? "✓" : "○"} ${r.kind}</span>
+      <span class="muted">${r.unlocks}</span></li>`).join("");
+}
+
+function renderMigrated(st){
+  if (!st.migrated.length) return;
+  $("#migrated").innerHTML = `<p class="muted">${st.migrated.length} files</p>` +
+    st.migrated.slice(0,30).map(p =>
+      `<div class="file"><a href="/api/file?path=${encodeURIComponent(p)}"
+        target="_blank" class="mono">${p}</a></div>`).join("");
+}
+
+async function refresh(){
+  const st = await api("/api/state");
+  $("#nasikoLink").href = st.nasiko;
+  const g = st.grant;
+  const pill = $("#grantPill");
+  pill.textContent = "execution: " + g;
+  pill.className = "pill " + (g === "read-write" ? "rw" : "ro");
+  renderTrack(st); renderTiers(st); renderReadiness(st);
+  renderRegressions(st); renderFiles(st); renderMigrated(st);
+}
+
+// stage buttons
+$("#bFleet").onclick    = () => run("fleet");
+$("#bSpine").onclick    = () => run("spine");
+$("#bDenied").onclick   = () => run("execute_denied");
+$("#bExecute").onclick  = () => run("execute");
+$("#bValidate").onclick = () => run("validate");
+$("#bParity").onclick   = () => run("parity");
+$("#bReset").onclick    = () => { if (confirm("Wipe the run workspace and start clean?")) run("reset"); };
+$("#bStop").onclick     = async () => { await api("/api/stop", {method:"POST"}); };
+
+// uploads
+const drop = $("#drop");
+drop.onclick = () => $("#picker").click();
+$("#bPickFiles").onclick = () => $("#picker").click();
+$("#bPickDir").onclick = () => $("#pickerDir").click();
+$("#picker").onchange = e => upload(e.target.files);
+$("#pickerDir").onchange = e => upload(e.target.files);
+["dragenter","dragover"].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => upload(e.dataTransfer.files));
+
+async function upload(files){
+  if (!files || !files.length) return;
+  const fd = new FormData();
+  for (const f of files) fd.append("file", f, f.webkitRelativePath || f.name);
+  drop.textContent = "uploading " + files.length + " file(s)…";
+  await fetch("/api/upload", {method:"POST", body: fd});
+  drop.innerHTML = "<b>Drop files or a folder here</b><br><small>or click to choose</small>";
+  refresh();
+}
+
+$("#bClearCtx").onclick = async () => {
+  await api("/api/context/clear", {method:"POST"});
+  refresh();
+};
+
+refresh();
+pollLog();
+setInterval(() => { if (!busy) refresh(); }, 5000);
+</script>
+</body>
+</html>

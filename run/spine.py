@@ -21,10 +21,33 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fleet import WORKSPACE, artifacts, ask_expecting  # noqa: E402
 
-AIM = (
+AIM = os.environ.get("STACKSHIFT_AIM") or (
     "Python 3.8 goes EOL in March and we fail the security audit. We need off "
     "Flask and MySQL without a redesign. The team is 4 people."
 )
+
+
+def context_note():
+    """Tell the agents about any context documents the user uploaded.
+
+    Optional by design: with none, the run proceeds on the repo alone. With
+    some, the agents are told they exist and where — an uploaded OpenAPI spec
+    or schema dump is worth more to Discovery than anything it can infer from
+    reading application code.
+    """
+    folder = os.path.join(WORKSPACE, "context")
+    if not os.path.isdir(folder):
+        return ""
+    names = sorted(n for n in os.listdir(folder)
+                   if os.path.isfile(os.path.join(folder, n)))
+    if not names:
+        return ""
+    return (
+        "\n\nThe user has supplied context documents in context/. Read the "
+        "relevant ones with read_file before you conclude anything, and prefer "
+        "them over what you infer from application code:\n"
+        + "\n".join("  context/%s" % n for n in names)
+    )
 
 STEPS = [
     {
@@ -91,9 +114,15 @@ def main():
     began = time.time()
     failures = 0
 
+    note = context_note()
+    if note:
+        print("  context: %d document(s) supplied by the user"
+              % len(note.strip().split("\n")[1:]))
+
     for step in STEPS[start:]:
         print("\n  %s ..." % step["label"])
-        result = ask_expecting(step["agent"], step["prompt"], step["expect"])
+        prompt = step["prompt"] + (note if step["agent"] != "planning" else "")
+        result = ask_expecting(step["agent"], prompt, step["expect"])
         if not result["ok"]:
             print("    FAILED: %s" % result["error"])
             failures += 1

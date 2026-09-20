@@ -46,6 +46,20 @@ the legacy line, and the query became `ORDER BY quantity ASC NULLS FIRST`.
 
 Requires the Nasiko stack running locally (`docker compose up -d` in `../nasiko`).
 
+### The portal
+
+```bash
+python3 portal/server.py     # then open http://localhost:7700
+```
+
+Trigger every stage, watch the live output, drop in context documents, approve a
+tier, and read the readiness score. Standard library only — nothing to install.
+
+It shells out to the same `run/*.py` scripts you would run by hand, so the
+portal and the terminal cannot drift apart.
+
+### Or the terminal
+
 ```bash
 ./run/demo.sh            # the whole thing, pausing between beats
 ./run/demo.sh --fast     # no pauses
